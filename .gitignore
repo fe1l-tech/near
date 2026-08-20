@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+out/
+dist/
+build/
+
+# Database (local user data)
+data.db
+data.db-wal
+data.db-shm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Claude
+.claude/scheduled_tasks.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Electron build output
+ai-workspace/
+release/
+
+# Agent memory
+.workbuddy/
+
+# Test screenshots
+tests/screenshots/
+
+# Debug
+input_debug.txt

@@ -1,0 +1,27 @@
+appId: com.xiaoling.app
+productName: 小零
+asar: false
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+extraMetadata:
+  main: out/main/index.js
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: null
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 小零
+  installerIcon: null
+  uninstallerIcon: null
+  installerHeaderIcon: null
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-setup.${ext}
