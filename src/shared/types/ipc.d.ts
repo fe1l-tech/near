@@ -108,6 +108,33 @@ interface ElectronAPI {
     deleteEvent: (id: string) => Promise<{ success: boolean }>
   }
 
+  todo: {
+    create: (data: {
+      title: string; description?: string; priority?: string
+      dueDate?: string; dueTime?: string; tags?: string
+      pomodoroTotal?: number; estimatedMinutes?: number
+    }) => Promise<{ success: boolean; data?: unknown; error?: string }>
+    getAll: () => Promise<unknown[]>
+    update: (id: string, data: {
+      title?: string; description?: string; status?: string; priority?: string
+      dueDate?: string; dueTime?: string; pomodoroTotal?: number; pomodoroDone?: number
+      estimatedMinutes?: number; tags?: string; isFavorite?: boolean; sortOrder?: number
+    }) => Promise<{ success: boolean }>
+    delete: (id: string) => Promise<{ success: boolean }>
+  }
+
+  memo: {
+    create: (data: { id?: string; title?: string; content?: string; excerpt?: string; tags?: string; isFavorite?: boolean; isPinned?: boolean }) =>
+      Promise<{ success: boolean; data?: unknown; error?: string }>
+    getAll: () => Promise<unknown[]>
+    update: (id: string, data: { title?: string; content?: string; excerpt?: string; tags?: string; isFavorite?: boolean; isPinned?: boolean; isArchived?: boolean }) =>
+      Promise<{ success: boolean }>
+    saveVersion: (memoId: string, content: string, version: number, changeNote?: string) =>
+      Promise<{ success: boolean; data?: unknown; error?: string }>
+    getVersions: (memoId: string) => Promise<unknown[]>
+    delete: (id: string) => Promise<{ success: boolean }>
+  }
+
   claude: {
     checkAvailability: () => Promise<{ success: boolean; data?: { available: boolean; version?: string; error?: string }; error?: string }>
     send: (claudeSessionId: string | null, prompt: string, options?: { cwd?: string; model?: string }) =>

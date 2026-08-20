@@ -2,6 +2,7 @@ import { getDatabase, saveDatabase } from '../database'
 import { handle } from './index'
 
 interface MemoData {
+  id?: string
   title?: string
   content?: string
   excerpt?: string
@@ -16,7 +17,8 @@ export function registerMemoIpc(): void {
   // 创建备忘录
   handle('memo:create', (data: MemoData) => {
     const db = getDatabase()
-    const id = crypto.randomUUID()
+    // 优先使用前端传入的 id，保证 create/update 用同一个 id
+    const id = data.id || crypto.randomUUID()
     const content = data.content || ''
     db.run(
       `INSERT INTO memos (id, title, content, excerpt, tags, is_favorite, is_pinned, is_archived, word_count)

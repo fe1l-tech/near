@@ -1,15 +1,20 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAiChat } from '@ai/hooks/use-ai-chat'
 import { useClaudeChat } from '@ai/hooks/use-claude-chat'
 import { useUserStore } from '@core/stores'
 import { ipc } from '@core/ipc/ipc-client'
 import { Button } from '@components/ui/button'
-import { GlassCard } from '@components/glass/glass-card'
 import { Send, Square, Key, Trash2, Bot, User, Brain, Copy, Check, Terminal, Loader2 } from 'lucide-react'
 import { cn } from '@lib/utils'
+import { ConversationList, type ConversationItem } from '../components/conversation-list'
 
 const CONV_ID_KEY = 'ai-workspace-current-conversation'
+
+function newConversationTitle(): string {
+  const now = new Date()
+  return `对话 ${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+}
 
 export default function ChatPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -17,6 +22,9 @@ export default function ChatPage() {
   const [error, setError] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [useClaude, setUseClaude] = useState(false)
+  const [conversations, setConversations] = useState<ConversationItem[]>([])
+  const [currentConvId, setCurrentConvId] = useState<string | null>(null)
+  const [listLoading, setListLoading] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const apiKey = useUserStore((s) => s.deepseekApiKey)
@@ -42,43 +50,79 @@ export default function ChatPage() {
   const { messages, thinking, isStreaming, sendMessage, stopGeneration, clearMessages } =
     useClaude ? claude : deepseek
 
+  // 将对话消息加载到当前 hook
+  const loadMessagesIntoHook = useCallback(
+    (msgs: any[]) => {
+      savedMsgIdsRef.current.clear()
+      const loaded = msgs.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        thinking: m.thinking,
+        createdAt: m.createdAt,
+      }))
+      loaded.forEach((m: any) => savedMsgIdsRef.current.add(m.id))
+      if (useClaude) {
+        claude.setMessages(loaded)
+      } else {
+        deepseek.setMessages(loaded)
+      }
+    },
+    [useClaude, claude, deepseek],
+  )
+
+  // 加载对话列表
+  const loadConversations = useCallback(async () => {
+    try {
+      setListLoading(true)
+      const list: any = await ipc.conversation.list()
+      if (Array.isArray(list)) {
+        setConversations(
+          list.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            model: c.model,
+            pinned: c.pinned,
+            messageCount: c.messageCount,
+            updatedAt: c.updatedAt,
+          })),
+        )
+      }
+    } catch {
+      // 浏览器模式降级
+    } finally {
+      setListLoading(false)
+    }
+  }, [])
+
+  // 创建新对话（返回 convId）
+  const createConversation = useCallback(async (): Promise<string | null> => {
+    const result: any = await ipc.conversation.create({ title: newConversationTitle() })
+    const convId = result?.data?.id || result?.id
+    if (convId) {
+      conversationIdRef.current = convId
+      setCurrentConvId(convId)
+      localStorage.setItem(CONV_ID_KEY, convId)
+    }
+    return convId || null
+  }, [])
+
   // 初始化对话：从 localStorage 恢复或创建新对话
   useEffect(() => {
     const initConversation = async () => {
+      await loadConversations()
       try {
         const savedId = localStorage.getItem(CONV_ID_KEY)
         if (savedId) {
-          // 尝试加载已有对话
           const msgs = await ipc.conversation.getMessages(savedId)
           if (Array.isArray(msgs) && msgs.length > 0) {
             conversationIdRef.current = savedId
-            // 将 DB 消息加载到当前 hook（DeepSeek 或 Claude）
-            const loaded = msgs.map((m: any) => ({
-              id: m.id,
-              role: m.role,
-              content: m.content,
-              thinking: m.thinking,
-              createdAt: m.createdAt,
-            }))
-            loaded.forEach((m: any) => savedMsgIdsRef.current.add(m.id))
-            // 设置消息到对应的 hook
-            if (useClaude) {
-              claude.setMessages(loaded)
-            } else {
-              deepseek.setMessages(loaded)
-            }
+            setCurrentConvId(savedId)
+            loadMessagesIntoHook(msgs)
             return
           }
         }
-        // 创建新对话
-        const now = new Date()
-        const title = `对话 ${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-        const result = await ipc.conversation.create({ title })
-        const convId = (result as any)?.data?.id || (result as any)?.id
-        if (convId) {
-          conversationIdRef.current = convId
-          localStorage.setItem(CONV_ID_KEY, convId)
-        }
+        await createConversation()
       } catch {
         // 浏览器模式降级：不使用持久化
       }
@@ -87,7 +131,52 @@ export default function ChatPage() {
     if (claude.claudeAvailable !== null) {
       initConversation()
     }
-  }, [claude.claudeAvailable])
+  }, [claude.claudeAvailable, loadConversations, loadMessagesIntoHook, createConversation])
+
+  // 切换对话
+  const handleSelectConversation = useCallback(
+    async (id: string) => {
+      if (id === currentConvId) return
+      if (isStreaming) stopGeneration()
+      try {
+        const msgs = await ipc.conversation.getMessages(id)
+        if (Array.isArray(msgs)) {
+          conversationIdRef.current = id
+          setCurrentConvId(id)
+          localStorage.setItem(CONV_ID_KEY, id)
+          loadMessagesIntoHook(msgs)
+        }
+      } catch {
+        // 降级
+      }
+    },
+    [currentConvId, isStreaming, stopGeneration, loadMessagesIntoHook],
+  )
+
+  // 新建对话
+  const handleNewConversation = useCallback(async () => {
+    if (isStreaming) stopGeneration()
+    clearMessages()
+    savedMsgIdsRef.current.clear()
+    const convId = await createConversation()
+    if (convId) await loadConversations()
+  }, [isStreaming, stopGeneration, clearMessages, createConversation, loadConversations])
+
+  // 删除对话
+  const handleDeleteConversation = useCallback(
+    async (id: string) => {
+      try {
+        await ipc.conversation.delete(id)
+        setConversations((prev) => prev.filter((c) => c.id !== id))
+        if (id === currentConvId) {
+          await handleNewConversation()
+        }
+      } catch {
+        // 降级
+      }
+    },
+    [currentConvId, handleNewConversation],
+  )
 
   // 消息变更时持久化到 SQLite
   useEffect(() => {
@@ -108,13 +197,15 @@ export default function ChatPage() {
             const title = msg.content.slice(0, 50)
             try {
               await ipc.conversation.update(conversationIdRef.current, { title })
+              // 刷新侧边栏标题
+              await loadConversations()
             } catch { /* ignore */ }
           }
         } catch { /* 降级 */ }
       }
     }
     persistMessages()
-  }, [messages])
+  }, [messages, loadConversations])
 
   // 自动滚动到底部
   useEffect(() => {
@@ -177,7 +268,19 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full">
+      {/* 对话历史侧边栏 */}
+      <ConversationList
+        conversations={conversations}
+        currentId={currentConvId}
+        loading={listLoading}
+        onSelect={handleSelectConversation}
+        onNew={handleNewConversation}
+        onDelete={handleDeleteConversation}
+      />
+
+      {/* 聊天区 */}
+      <div className="flex h-full flex-1 flex-col">
       {/* 消息列表 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4">
         {messages.length === 0 ? (
@@ -310,21 +413,7 @@ export default function ChatPage() {
           </div>
           {messages.length > 0 && (
             <button
-              onClick={async () => {
-                clearMessages()
-                savedMsgIdsRef.current.clear()
-                // 创建新对话
-                try {
-                  const now = new Date()
-                  const title = `对话 ${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-                  const result = await ipc.conversation.create({ title })
-                  const convId = (result as any)?.data?.id || (result as any)?.id
-                  if (convId) {
-                    conversationIdRef.current = convId
-                    localStorage.setItem(CONV_ID_KEY, convId)
-                  }
-                } catch { /* 降级 */ }
-              }}
+              onClick={handleNewConversation}
               className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <Trash2 className="h-3 w-3" />
@@ -332,6 +421,7 @@ export default function ChatPage() {
             </button>
           )}
         </div>
+      </div>
       </div>
     </div>
   )

@@ -68,9 +68,10 @@ export const useMemoStore = create<MemoState>()(
       create: async (title) => {
         const memo = createMemo({ title })
         set((s) => ({ memos: [memo, ...s.memos], selectedId: memo.id }))
-        // 同步到 SQLite
+        // 同步到 SQLite（传入前端生成的 id，保证后续 update 能匹配到同一条记录）
         try {
           await ipc.memo.create({
+            id: memo.id,
             title: memo.title,
             content: memo.content,
             excerpt: memo.excerpt,

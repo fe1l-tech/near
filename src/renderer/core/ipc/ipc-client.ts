@@ -91,7 +91,7 @@ function createMockApi() {
       delete: async () => ({ success: true }),
     },
     memo: {
-      create: async (data: any) => ({ id: crypto.randomUUID(), title: data?.title || '未命名', content: data?.content || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+      create: async (data: any) => ({ id: data?.id || crypto.randomUUID(), title: data?.title || '未命名', content: data?.content || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
       getAll: async () => [],
       update: async () => ({ success: true }),
       saveVersion: async () => ({ id: crypto.randomUUID() }),

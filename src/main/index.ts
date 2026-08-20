@@ -1,7 +1,30 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
+import { existsSync, mkdirSync, copyFileSync } from 'fs'
 import { initDatabase } from './database'
 import { registerIpcHandlers } from './ipc'
+
+// 固定 userData 目录为 %APPDATA%/小零，避免 dev/打包版目录漂移
+// （dev 模式下 app name 为 ai-workspace，打包版为小零，数据会存到不同目录）
+const APP_DATA_DIR = '小零'
+const legacyUserData = app.getPath('userData')
+const fixedUserData = join(app.getPath('appData'), APP_DATA_DIR)
+app.setPath('userData', fixedUserData)
+
+// 从旧目录迁移数据（若旧目录有数据库且新目录为空）
+function migrateLegacyData(): void {
+  if (legacyUserData === fixedUserData) return
+  if (!existsSync(legacyUserData)) return
+  const legacyDb = join(legacyUserData, 'ai-workspace.db')
+  const fixedDb = join(fixedUserData, 'ai-workspace.db')
+  if (!existsSync(legacyDb)) return
+  if (existsSync(fixedDb)) return
+  mkdirSync(fixedUserData, { recursive: true })
+  copyFileSync(legacyDb, fixedDb)
+  console.log(`[Database] Migrated from ${legacyUserData} to ${fixedUserData}`)
+}
+
+migrateLegacyData()
 
 let mainWindow: BrowserWindow | null = null
 

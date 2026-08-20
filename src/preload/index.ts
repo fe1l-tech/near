@@ -118,7 +118,7 @@ const api = {
 
   // 备忘录模块
   memo: {
-    create: (data: { title?: string; content?: string; excerpt?: string; tags?: string; isFavorite?: boolean; isPinned?: boolean }) =>
+    create: (data: { id?: string; title?: string; content?: string; excerpt?: string; tags?: string; isFavorite?: boolean; isPinned?: boolean }) =>
       ipcRenderer.invoke('memo:create', data),
     getAll: () => ipcRenderer.invoke('memo:get-all'),
     update: (id: string, data: { title?: string; content?: string; excerpt?: string; tags?: string; isFavorite?: boolean; isPinned?: boolean; isArchived?: boolean }) =>
