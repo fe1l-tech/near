@@ -33,7 +33,7 @@ interface TodoState {
   loaded: boolean
 
   loadFromDb: () => Promise<void>
-  add: (title: string, priority?: TodoItem['priority']) => void
+  add: (title: string, options?: { priority?: TodoItem['priority']; dueDate?: string; dueTime?: string }) => void
   update: (id: string, updates: Partial<TodoItem>) => void
   remove: (id: string) => void
   toggle: (id: string) => void
@@ -75,18 +75,20 @@ export const useTodoStore = create<TodoState>()(
         }
       },
 
-      add: (title, priority = 'medium') => {
+      add: (title, options) => {
+        const priority = options?.priority || 'medium'
         const now = new Date().toISOString()
         const newTodo: TodoItem = {
           id: crypto.randomUUID(), title, description: '',
           status: 'pending', priority,
+          dueDate: options?.dueDate, dueTime: options?.dueTime,
           pomodoroTotal: 0, pomodoroDone: 0,
           tags: [], createdAt: now, updatedAt: now,
         }
         set((s) => ({ todos: [...s.todos, newTodo] }))
         // 同步到 SQLite
         try {
-          ipc.todo.create({ title, priority })
+          ipc.todo.create({ title, priority, dueDate: options?.dueDate, dueTime: options?.dueTime })
         } catch { /* 降级 */ }
       },
 

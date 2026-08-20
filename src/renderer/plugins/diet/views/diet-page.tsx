@@ -22,11 +22,14 @@ export default function DietPage() {
     if (!loaded) loadFromDb(today)
   }, [loaded, loadFromDb])
 
+  // 自动估算热量：蛋白×4 + 脂肪×9 + 碳水×4
+  const computedCalories = Math.round(form.protein * 4 + form.fat * 9 + form.carbs * 4)
+
   const handleAdd = () => {
     if (!form.name) return
     addMeal({
       type: form.type, name: form.name,
-      calories: form.calories, protein: form.protein,
+      calories: computedCalories, protein: form.protein,
       fat: form.fat, carbs: form.carbs,
       date: today,
     })
@@ -83,15 +86,17 @@ export default function DietPage() {
             </div>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="食物名称" onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
-            <div className="grid grid-cols-4 gap-1">
-              <Input type="number" value={form.calories || ''} onChange={(e) => setForm({ ...form, calories: +e.target.value })}
-                placeholder="热量(kcal)" />
+            <div className="grid grid-cols-3 gap-1">
               <Input type="number" value={form.protein || ''} onChange={(e) => setForm({ ...form, protein: +e.target.value })}
                 placeholder="蛋白质(g)" />
               <Input type="number" value={form.fat || ''} onChange={(e) => setForm({ ...form, fat: +e.target.value })}
                 placeholder="脂肪(g)" />
               <Input type="number" value={form.carbs || ''} onChange={(e) => setForm({ ...form, carbs: +e.target.value })}
                 placeholder="碳水(g)" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              自动估算热量：<span className="font-medium text-orange-400">{computedCalories} kcal</span>
+              <span className="ml-1">(蛋白×4 + 脂肪×9 + 碳水×4)</span>
             </div>
             <Button size="sm" className="w-full gap-1" onClick={handleAdd}><Plus className="h-3.5 w-3.5" />记录</Button>
           </div>

@@ -9,7 +9,24 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineCh
 const EXERCISES = ['卧推', '深蹲', '硬拉', '引体向上', '俯卧撑', '跑步', '划船', '肩推']
 
 export default function FitnessPage() {
-  const { logs, stats, plans, loaded, loadFromDb, addLog, removeLog, addStat, addPlan } = useFitnessStore()
+  const { logs, stats, plans, loaded, loadFromDb, addLog, removeLog, addStat, addPlan, updatePlan, deletePlan } = useFitnessStore()
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null)
+  const [editPlanName, setEditPlanName] = useState('')
+  const [editPlanDesc, setEditPlanDesc] = useState('')
+
+  const startEditPlan = (plan: typeof plans[number]) => {
+    setEditingPlanId(plan.id)
+    setEditPlanName(plan.name)
+    setEditPlanDesc(plan.description || '')
+  }
+  const saveEditPlan = async () => {
+    if (!editingPlanId) return
+    await updatePlan(editingPlanId, { name: editPlanName, description: editPlanDesc })
+    setEditingPlanId(null)
+  }
+  const togglePlanActive = (plan: typeof plans[number]) => {
+    updatePlan(plan.id, { isActive: !plan.is_active })
+  }
   const [form, setForm] = useState({ exercise: '卧推', sets: 3, reps: 10, weight: 20 })
   const [weightForm, setWeightForm] = useState({ weight: 70, height: 175 })
   const [activeTab, setActiveTab] = useState<'log' | 'body' | 'plan'>('log')
@@ -189,14 +206,40 @@ export default function FitnessPage() {
           ) : (
             <div className="space-y-2">
               {plans.map((plan) => (
-                <div key={plan.id} className="flex items-center gap-3 rounded-xl bg-muted/20 px-4 py-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{plan.name}</p>
-                    {plan.description && <p className="text-xs text-muted-foreground">{plan.description}</p>}
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${plan.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
-                    {plan.is_active ? '进行中' : '停用'}
-                  </span>
+                <div key={plan.id} className="rounded-xl bg-muted/20 px-4 py-3 space-y-2">
+                  {editingPlanId === plan.id ? (
+                    <div className="space-y-2">
+                      <Input value={editPlanName} onChange={(e) => setEditPlanName(e.target.value)} placeholder="计划名称" />
+                      <Input value={editPlanDesc} onChange={(e) => setEditPlanDesc(e.target.value)} placeholder="描述(选填)" />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEditPlan}>保存</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingPlanId(null)}>取消</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{plan.name}</p>
+                        {plan.description && <p className="text-xs text-muted-foreground truncate">{plan.description}</p>}
+                      </div>
+                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${plan.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                        {plan.is_active ? '进行中' : '停用'}
+                      </span>
+                    </div>
+                  )}
+                  {editingPlanId !== plan.id && (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => togglePlanActive(plan)} className="rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10">
+                        {plan.is_active ? '停用' : '开始'}
+                      </button>
+                      <button onClick={() => startEditPlan(plan)} className="rounded-lg p-1.5 text-muted-foreground hover:text-primary" title="编辑">
+                        ✏️
+                      </button>
+                      <button onClick={() => deletePlan(plan.id)} className="rounded-lg p-1.5 text-muted-foreground hover:text-red-400" title="删除">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

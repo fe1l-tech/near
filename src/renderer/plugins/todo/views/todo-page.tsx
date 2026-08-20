@@ -13,6 +13,7 @@ const PRIORITY_LABELS = { urgent: '紧急', high: '高', medium: '中', low: '�
 export default function TodoPage() {
   const { todos, filter, searchQuery, loaded, loadFromDb, add, update, remove, toggle, setFilter, setSearch, getFiltered, getStats } = useTodoStore()
   const [newTitle, setNewTitle] = useState('')
+  const [newDueDate, setNewDueDate] = useState('')
   const [activeTimer, setActiveTimer] = useState<string | null>(null)
   const [timerSeconds, setTimerSeconds] = useState(0)
   const [timerRunning, setTimerRunning] = useState(false)
@@ -52,8 +53,9 @@ export default function TodoPage() {
 
   const handleAdd = () => {
     if (!newTitle.trim()) return
-    add(newTitle.trim())
+    add(newTitle.trim(), { dueDate: newDueDate || undefined })
     setNewTitle('')
+    setNewDueDate('')
   }
 
   return (
@@ -72,7 +74,9 @@ export default function TodoPage() {
         <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           placeholder="添加新任务..." className="flex-1" />
-        <Button onClick={handleAdd} className="gap-1"><Plus className="h-4 w-4" />添加</Button>
+        <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)}
+          className="w-40 shrink-0" title="截止日期" />
+        <Button onClick={handleAdd} className="gap-1 shrink-0"><Plus className="h-4 w-4" />添加</Button>
       </div>
 
       {/* 过滤 + 搜索 */}
