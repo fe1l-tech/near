@@ -184,6 +184,8 @@ export default function ChatPage() {
       if (!conversationIdRef.current) return
       for (const msg of messages) {
         if (savedMsgIdsRef.current.has(msg.id)) continue
+        // 助手消息在流式输出中（或内容为空）时跳过，等流式结束、内容完整后再落库
+        if (msg.role === 'assistant' && (isStreaming || !msg.content)) continue
         savedMsgIdsRef.current.add(msg.id)
         try {
           await ipc.conversation.addMessage({
@@ -205,7 +207,7 @@ export default function ChatPage() {
       }
     }
     persistMessages()
-  }, [messages, loadConversations])
+  }, [messages, isStreaming, loadConversations])
 
   // 自动滚动到底部
   useEffect(() => {
