@@ -89,7 +89,7 @@ const api = {
     create: (data: { title: string; model?: string; systemPrompt?: string; claudeSessionId?: string }) =>
       ipcRenderer.invoke('conversation:create', data),
     list: () => ipcRenderer.invoke('conversation:list'),
-    update: (id: string, data: { title?: string; model?: string; systemPrompt?: string; pinned?: boolean; archived?: boolean }) =>
+    update: (id: string, data: { title?: string; model?: string; systemPrompt?: string; pinned?: boolean; archived?: boolean; claudeSessionId?: string }) =>
       ipcRenderer.invoke('conversation:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('conversation:delete', id),
     addMessage: (data: { conversationId: string; role: string; content: string; thinking?: string }) =>

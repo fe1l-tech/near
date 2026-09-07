@@ -30,6 +30,9 @@ export default function ChatPage() {
   const apiKey = useUserStore((s) => s.deepseekApiKey)
   const conversationIdRef = useRef<string | null>(null)
   const savedMsgIdsRef = useRef<Set<string>>(new Set())
+  const initRef = useRef(false)
+  // 完整对话原始记录（含 claudeSessionId），供切换/恢复会话时查询
+  const convListRef = useRef<any[]>([])
 
   // Claude Code hook
   const claude = useClaudeChat({ onError: setError })
@@ -50,6 +53,16 @@ export default function ChatPage() {
   const { messages, thinking, isStreaming, sendMessage, stopGeneration, clearMessages } =
     useClaude ? claude : deepseek
 
+  // 提取稳定的 setMessages：hook 返回的对象每次 render 都是新引用，
+  // 但内部 setMessages 是稳定函数。下游 useCallback 只依赖它们，
+  // 避免依赖整个 hook 对象导致引用每次 render 变化、引发 useEffect 无限循环
+  const claudeSetMessages = claude.setMessages
+  const deepseekSetMessages = deepseek.setMessages
+  // 稳定引用，避免依赖整个 hook 对象导致无限循环
+  const claudeClearMessages = claude.clearMessages
+  const deepseekClearMessages = deepseek.clearMessages
+  const claudeSetSessionId = claude.setClaudeSessionId
+
   // 将对话消息加载到当前 hook
   const loadMessagesIntoHook = useCallback(
     (msgs: any[]) => {
@@ -62,21 +75,22 @@ export default function ChatPage() {
         createdAt: m.createdAt,
       }))
       loaded.forEach((m: any) => savedMsgIdsRef.current.add(m.id))
-      if (useClaude) {
-        claude.setMessages(loaded)
-      } else {
-        deepseek.setMessages(loaded)
-      }
+      // 双写：初始化时 useClaude 可能仍是旧值（Claude 检测尚未完成），
+      // 若只写入当前 hook，历史会被灌进错误的 hook，导致重开后看不到历史。
+      // 两个 hook 都写入，无论界面最终展示哪个，都能看到完整历史。
+      claudeSetMessages(loaded)
+      deepseekSetMessages(loaded)
     },
-    [useClaude, claude, deepseek],
+    [claudeSetMessages, deepseekSetMessages],
   )
 
   // 加载对话列表
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (): Promise<any[]> => {
     try {
       setListLoading(true)
       const list: any = await ipc.conversation.list()
       if (Array.isArray(list)) {
+        convListRef.current = list
         setConversations(
           list.map((c: any) => ({
             id: c.id,
@@ -87,12 +101,14 @@ export default function ChatPage() {
             updatedAt: c.updatedAt,
           })),
         )
+        return list
       }
     } catch {
       // 浏览器模式降级
     } finally {
       setListLoading(false)
     }
+    return []
   }, [])
 
   // 创建新对话（返回 convId）
@@ -110,7 +126,7 @@ export default function ChatPage() {
   // 初始化对话：从 localStorage 恢复或创建新对话
   useEffect(() => {
     const initConversation = async () => {
-      await loadConversations()
+      const list: any[] = await loadConversations()
       try {
         const savedId = localStorage.getItem(CONV_ID_KEY)
         if (savedId) {
@@ -118,6 +134,9 @@ export default function ChatPage() {
           if (Array.isArray(msgs) && msgs.length > 0) {
             conversationIdRef.current = savedId
             setCurrentConvId(savedId)
+            // 恢复上一次的 Claude 会话 id，让重开后 Claude 仍能续接上下文
+            const conv = list.find((c: any) => c.id === savedId)
+            if (conv?.claudeSessionId) claudeSetSessionId(conv.claudeSessionId)
             loadMessagesIntoHook(msgs)
             return
           }
@@ -127,11 +146,12 @@ export default function ChatPage() {
         // 浏览器模式降级：不使用持久化
       }
     }
-    // 等 Claude 检测完成后再初始化
-    if (claude.claudeAvailable !== null) {
-      initConversation()
-    }
-  }, [claude.claudeAvailable, loadConversations, loadMessagesIntoHook, createConversation])
+    // 等 Claude 检测完成后再初始化，且只初始化一次
+    // （useEffect 依赖的函数即使引用稳定，也防御重复挂载/热更导致的重复执行）
+    if (claude.claudeAvailable === null || initRef.current) return
+    initRef.current = true
+    initConversation()
+  }, [claude.claudeAvailable, loadConversations, loadMessagesIntoHook, createConversation, claudeSetSessionId])
 
   // 切换对话
   const handleSelectConversation = useCallback(
@@ -145,22 +165,31 @@ export default function ChatPage() {
           setCurrentConvId(id)
           localStorage.setItem(CONV_ID_KEY, id)
           loadMessagesIntoHook(msgs)
+          // 恢复该对话自己的 Claude 会话（无则置空开新会话），
+          // 避免切到另一条对话后仍 --resume 上一对话的上下文
+          const conv = convListRef.current.find((c: any) => c.id === id)
+          claudeSetSessionId(conv?.claudeSessionId ?? null)
         }
       } catch {
         // 降级
       }
     },
-    [currentConvId, isStreaming, stopGeneration, loadMessagesIntoHook],
+    [currentConvId, isStreaming, stopGeneration, loadMessagesIntoHook, claudeSetSessionId],
   )
 
   // 新建对话
   const handleNewConversation = useCallback(async () => {
     if (isStreaming) stopGeneration()
+    // 双清：双写历史后两个 hook 都持有消息，新建对话需一并清空，避免旧对话串入新对话
     clearMessages()
+    claudeClearMessages()
+    deepseekClearMessages()
+    // 新对话必须从全新 Claude 会话开始，不能续接上一个对话的 session
+    claudeSetSessionId(null)
     savedMsgIdsRef.current.clear()
     const convId = await createConversation()
     if (convId) await loadConversations()
-  }, [isStreaming, stopGeneration, clearMessages, createConversation, loadConversations])
+  }, [isStreaming, stopGeneration, clearMessages, claudeClearMessages, deepseekClearMessages, claudeSetSessionId, createConversation, loadConversations])
 
   // 删除对话
   const handleDeleteConversation = useCallback(
@@ -181,6 +210,12 @@ export default function ChatPage() {
   // 消息变更时持久化到 SQLite
   useEffect(() => {
     const persistMessages = async () => {
+      // 兜底：初始化时的 createConversation 是异步的，在对话 id 还没就绪的窗口里，
+      // 早期消息会被上面的判断静默丢弃。这里若有消息但对话尚未创建，先建一个再落库，
+      // 确保历史不丢。
+      if (!conversationIdRef.current && messages.length > 0) {
+        await createConversation()
+      }
       if (!conversationIdRef.current) return
       for (const msg of messages) {
         if (savedMsgIdsRef.current.has(msg.id)) continue
@@ -207,7 +242,17 @@ export default function ChatPage() {
       }
     }
     persistMessages()
-  }, [messages, isStreaming, loadConversations])
+  }, [messages, isStreaming, loadConversations, createConversation])
+
+  // Claude 会话 id 变化（每次新会话生成/恢复）时写回数据库，
+  // 确保重开应用后能 --resume 续接上下文
+  useEffect(() => {
+    if (claude.claudeSessionId && conversationIdRef.current) {
+      ipc.conversation
+        .update(conversationIdRef.current, { claudeSessionId: claude.claudeSessionId })
+        .catch(() => {})
+    }
+  }, [claude.claudeSessionId])
 
   // 自动滚动到底部
   useEffect(() => {

@@ -1,6 +1,20 @@
 import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import type { ModelAdapter, ModelConfig } from './adapter.interface'
 import type { ChatMessage, StreamChunk } from '../types/message.types'
+
+/**
+ * DeepSeek 在 OpenAI 协议上的扩展字段（OpenAI SDK 的 Delta 类型未包含，
+ * 例如 R1 的 reasoning_content），在此单独声明避免运行时字段访问报类型错。
+ */
+interface DeepSeekChatDelta {
+  reasoning_content?: string | null
+  content?: string | null
+  tool_calls?: Array<{
+    id?: string
+    function?: { name?: string; arguments?: string }
+  }>
+}
 
 /**
  * DeepSeek API 适配器
@@ -50,7 +64,8 @@ export class DeepSeekAdapter implements ModelAdapter {
     )
 
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta
+      // 用本地扩展类型读取 delta，reasoning_content 等字段才可通过类型检查
+      const delta = chunk.choices[0]?.delta as DeepSeekChatDelta | undefined
 
       // 处理思维链（DeepSeek R1 特有）
       if (delta?.reasoning_content) {
@@ -84,10 +99,13 @@ export class DeepSeekAdapter implements ModelAdapter {
     onChunk({ type: 'done' })
   }
 
-  private formatMessages(messages: ChatMessage[]): Array<{ role: string; content: string; name?: string }> {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }))
+  private formatMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+    // 当前会话只发送 user/assistant 两种角色；用字面量收窄保证
+    // 与 OpenAI SDK 的 ChatCompletionMessageParam 联合类型兼容
+    return messages.map((msg) =>
+      msg.role === 'user'
+        ? { role: 'user', content: msg.content }
+        : { role: 'assistant', content: msg.content },
+    )
   }
 }

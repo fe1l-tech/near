@@ -31,6 +31,7 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [thinking, setThinking] = useState('')
   const [claudeAvailable, setClaudeAvailable] = useState<boolean | null>(null)
+  const [claudeSessionId, setClaudeSessionIdState] = useState<string | null>(null)
   const streamIdRef = useRef<string | null>(null)
   const fullTextRef = useRef('')
   const unsubscribeRef = useRef<(() => void) | null>(null)
@@ -81,6 +82,7 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
       case 'session': {
         if (event.claudeSessionId) {
           claudeSessionIdRef.current = event.claudeSessionId
+          setClaudeSessionIdState(event.claudeSessionId)
         }
         break
       }
@@ -90,6 +92,7 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
         // 否则下次 send 时没有 --resume 参数，会开新会话导致上下文丢失
         if (event.claudeSessionId) {
           claudeSessionIdRef.current = event.claudeSessionId
+          setClaudeSessionIdState(event.claudeSessionId)
         }
         setIsStreaming(false)
         streamIdRef.current = null
@@ -172,6 +175,13 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
     fullTextRef.current = ''
   }, [])
 
+  // 供 chat-page 在初始化时恢复上一次的 Claude 会话 id，
+  // 让重开后仍能 --resume 续接之前的上下文
+  const setClaudeSessionId = useCallback((id: string | null) => {
+    claudeSessionIdRef.current = id
+    setClaudeSessionIdState(id)
+  }, [])
+
   return {
     messages,
     thinking,
@@ -181,6 +191,7 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
     clearMessages,
     setMessages,
     claudeAvailable,
-    claudeSessionId: claudeSessionIdRef.current,
+    claudeSessionId,
+    setClaudeSessionId,
   }
 }

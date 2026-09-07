@@ -5,6 +5,7 @@ import { useTodoStore } from '@plugins/todo/viewmodels/todo.store'
 import { useMemoStore } from '@plugins/memo/viewmodels/memo.store'
 import { useCalendarStore } from '@plugins/calendar/viewmodels/calendar.store'
 import { ipc } from '@core/ipc/ipc-client'
+import { useUserStore } from '@core/stores'
 import { cn } from '@lib/utils'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const { todos, getStats: getTodoStats } = useTodoStore()
   const { memos } = useMemoStore()
   const { events } = useCalendarStore()
+  const username = useUserStore((s) => s.username) || '洲'
 
   // 实时时钟
   useEffect(() => {
@@ -55,6 +57,10 @@ export default function DashboardPage() {
   const todayEvents = events.filter(e => e.date === todayStr).slice(0, 5)
   const recentMemos = memos.filter(m => !m.isArchived).slice(0, 3)
 
+  // 时段问候语
+  const hour = currentTime.getHours()
+  const greeting = hour < 6 ? '夜深了' : hour < 9 ? '早上好' : hour < 12 ? '上午好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好'
+
   // 快速导航
   const quickLinks = [
     { label: 'AI 对话', icon: MessageCircle, path: '/chat', color: 'text-primary', bg: 'bg-primary/10' },
@@ -70,7 +76,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            👋 {currentTime.getHours() < 6 ? '夜深了' : currentTime.getHours() < 9 ? '早上好' : currentTime.getHours() < 12 ? '上午好' : currentTime.getHours() < 14 ? '中午好' : currentTime.getHours() < 18 ? '下午好' : '晚上好'}
+            👋 {greeting}{username ? `，${username}` : ''}
           </h1>
           <p className="mt-1 text-muted-foreground">{dateStr}</p>
         </div>

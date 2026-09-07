@@ -75,18 +75,20 @@ export function Sidebar() {
       {/* 新建对话按钮 */}
       <div className="px-3 pb-2">
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size={collapsed ? 'icon' : 'default'}
-              className={cn(
-                'w-full gap-2 border-border/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary',
-                collapsed && 'h-9 w-9 mx-auto',
-              )}
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>新建对话</span>}
-            </Button>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size={collapsed ? 'icon' : 'default'}
+                className={cn(
+                  'w-full gap-2 border-border/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary',
+                  collapsed && 'h-9 w-9 mx-auto',
+                )}
+              />
+            }
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>新建对话</span>}
           </TooltipTrigger>
           {collapsed && <TooltipContent side="right">新建对话</TooltipContent>}
         </Tooltip>
@@ -142,28 +144,30 @@ function SidebarItem({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <NavLink
-          to={item.path}
-          className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150',
-            'hover:bg-accent/50',
-            isActive
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:text-foreground',
-            collapsed && 'justify-center px-0',
-          )}
-        >
-          <Icon className={cn('h-5 w-5 shrink-0', isActive && 'text-primary')} />
-          {!collapsed && (
-            <span className="flex-1 truncate">{item.label}</span>
-          )}
-          {!collapsed && item.shortcut && (
-            <kbd className="ml-auto hidden rounded-md border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground/60 lg:inline">
-              ^ {item.shortcut}
-            </kbd>
-          )}
-        </NavLink>
+      <TooltipTrigger
+        render={
+          <NavLink
+            to={item.path}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150',
+              'hover:bg-accent/50',
+              isActive
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:text-foreground',
+              collapsed && 'justify-center px-0',
+            )}
+          />
+        }
+      >
+        <Icon className={cn('h-5 w-5 shrink-0', isActive && 'text-primary')} />
+        {!collapsed && (
+          <span className="flex-1 truncate">{item.label}</span>
+        )}
+        {!collapsed && item.shortcut && (
+          <kbd className="ml-auto hidden rounded-md border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground/60 lg:inline">
+            ^ {item.shortcut}
+          </kbd>
+        )}
       </TooltipTrigger>
       {collapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
     </Tooltip>

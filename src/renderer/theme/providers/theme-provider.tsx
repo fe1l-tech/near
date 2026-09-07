@@ -7,5 +7,5 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   // 默认使用亮色樱花主题（不添加 dark class）
-  return <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+  return <TooltipProvider delay={200}>{children}</TooltipProvider>
 }

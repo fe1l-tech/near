@@ -83,7 +83,7 @@ interface ElectronAPI {
     create: (data: { title: string; model?: string; systemPrompt?: string; claudeSessionId?: string }) =>
       Promise<{ success: boolean; data?: unknown; error?: string }>
     list: () => Promise<unknown[]>
-    update: (id: string, data: { title?: string; model?: string; systemPrompt?: string; pinned?: boolean; archived?: boolean }) =>
+    update: (id: string, data: { title?: string; model?: string; systemPrompt?: string; pinned?: boolean; archived?: boolean; claudeSessionId?: string }) =>
       Promise<{ success: boolean }>
     delete: (id: string) => Promise<{ success: boolean }>
     addMessage: (data: { conversationId: string; role: string; content: string; thinking?: string }) =>
