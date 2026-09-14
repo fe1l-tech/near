@@ -4,26 +4,55 @@ import { existsSync, mkdirSync, copyFileSync } from 'fs'
 import { initDatabase } from './database'
 import { registerIpcHandlers } from './ipc'
 
-// 固定 userData 目录为 %APPDATA%/小零，避免 dev/打包版目录漂移
-// （dev 模式下 app name 为 ai-workspace，打包版为小零，数据会存到不同目录）
-const APP_DATA_DIR = '小零'
-const legacyUserData = app.getPath('userData')
-const fixedUserData = join(app.getPath('appData'), APP_DATA_DIR)
-app.setPath('userData', fixedUserData)
+/**
+ * 固定 userData 目录，避免 dev / 打包版因 app name 不同而各存一份数据。
+ *
+ * 用固定目录名（而不是跟随 app name）是有意为之：这样开发时和安装后
+ * 看到的是同一份数据。
+ *
+ * 目录沿革（迁移链，按从旧到新排列）：
+ *   1. `ai-workspace` —— 早期用 package.json 的 name 作为目录
+ *   2. `小零`         —— 改名前的产品名
+ *   3. `near`         —— 当前
+ *
+ * 每改一次名，就要把旧目录追加到 LEGACY_APP_DATA_DIRS 里，
+ * 否则用了一段时间的用户升级后会"数据凭空消失"。
+ */
+const APP_DATA_DIR = 'near'
+const LEGACY_APP_DATA_DIRS = ['小零', 'ai-workspace'] as const
+const DB_FILENAME = 'ai-workspace.db'
 
-// 从旧目录迁移数据（若旧目录有数据库且新目录为空）
+const appDataRoot = app.getPath('appData')
+const targetUserData = join(appDataRoot, APP_DATA_DIR)
+
+/** 从历史目录迁移数据库（仅当目标为空、且来源有库时） */
 function migrateLegacyData(): void {
-  if (legacyUserData === fixedUserData) return
-  if (!existsSync(legacyUserData)) return
-  const legacyDb = join(legacyUserData, 'ai-workspace.db')
-  const fixedDb = join(fixedUserData, 'ai-workspace.db')
-  if (!existsSync(legacyDb)) return
-  if (existsSync(fixedDb)) return
-  mkdirSync(fixedUserData, { recursive: true })
-  copyFileSync(legacyDb, fixedDb)
-  console.log(`[Database] Migrated from ${legacyUserData} to ${fixedUserData}`)
+  const targetDb = join(targetUserData, DB_FILENAME)
+
+  // 历史目录 + 当前默认目录（同一进程内可能已解析出的路径）
+  const sources = [
+    ...LEGACY_APP_DATA_DIRS.map((dir) => join(appDataRoot, dir)),
+    app.getPath('userData'),
+  ]
+
+  for (const source of sources) {
+    if (source === targetUserData) continue
+    if (!existsSync(source)) continue
+
+    const sourceDb = join(source, DB_FILENAME)
+    if (!existsSync(sourceDb)) continue
+
+    // 目标已有数据则不覆盖，否则会把新数据盖掉
+    if (existsSync(targetDb)) return
+
+    mkdirSync(targetUserData, { recursive: true })
+    copyFileSync(sourceDb, targetDb)
+    console.log(`[Database] 已从 ${source} 迁移数据到 ${targetUserData}`)
+    return
+  }
 }
 
+app.setPath('userData', targetUserData)
 migrateLegacyData()
 
 let mainWindow: BrowserWindow | null = null
@@ -43,7 +72,7 @@ async function createWindow() {
     frame: true,
     autoHideMenuBar: true,
     backgroundColor: '#fef5f7',
-    title: '小零',
+    title: 'near',
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,

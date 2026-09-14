@@ -31,6 +31,21 @@ vi.mock('@core/ipc/ipc-client', () => ({
   },
 }))
 
+// Claude Code CLI 只在桌面版可用；jsdom 里没有 window.api，
+// 不显式声明平台的话 hook 会按「浏览器模式」跳过检测与事件注册。
+vi.mock('@core/platform', () => ({
+  isElectron: true,
+  isWeb: false,
+  capabilities: {
+    claudeCli: true,
+    fileSystem: true,
+    shellExec: true,
+    nativeSystem: true,
+    weather: true,
+    aiChat: true,
+  },
+}))
+
 import { useClaudeChat } from '@ai/hooks/use-claude-chat'
 
 describe('useClaudeChat — 会话续接回归', () => {

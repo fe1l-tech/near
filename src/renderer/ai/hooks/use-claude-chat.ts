@@ -4,6 +4,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ipc } from '@core/ipc/ipc-client'
+import { capabilities } from '@core/platform'
 import type { ChatMessage } from '../types/message.types'
 
 interface UseClaudeChatOptions {
@@ -30,15 +31,20 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [thinking, setThinking] = useState('')
-  const [claudeAvailable, setClaudeAvailable] = useState<boolean | null>(null)
+  // Claude Code CLI 需要本地子进程，浏览器环境直接判定不可用，
+  // 避免在 Web 版里让 chat 页面卡在「正在检测 Claude Code...」
+  const [claudeAvailable, setClaudeAvailable] = useState<boolean | null>(
+    capabilities.claudeCli ? null : false,
+  )
   const [claudeSessionId, setClaudeSessionIdState] = useState<string | null>(null)
   const streamIdRef = useRef<string | null>(null)
   const fullTextRef = useRef('')
   const unsubscribeRef = useRef<(() => void) | null>(null)
   const claudeSessionIdRef = useRef<string | null>(null)
 
-  // 启动时检测 Claude 是否可用
+  // 启动时检测 Claude 是否可用（仅桌面版）
   useEffect(() => {
+    if (!capabilities.claudeCli) return
     ipc.claude.checkAvailability().then((result) => {
       if (result.success && result.data) {
         setClaudeAvailable(result.data.available)
@@ -48,8 +54,9 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
     })
   }, [])
 
-  // 注册流事件监听
+  // 注册流事件监听（仅桌面版）
   useEffect(() => {
+    if (!capabilities.claudeCli) return
     unsubscribeRef.current = ipc.claude.onStreamEvent(handleStreamEvent)
     return () => {
       unsubscribeRef.current?.()

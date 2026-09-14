@@ -1,5 +1,5 @@
-appId: com.xiaoling.app
-productName: 小零
+appId: com.fe1ltech.near
+productName: near
 asar: false
 directories:
   output: release
@@ -19,7 +19,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: 小零
+  shortcutName: near
   installerIcon: null
   uninstallerIcon: null
   installerHeaderIcon: null

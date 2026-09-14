@@ -71,13 +71,14 @@ const POPULAR_CITIES = [
   { name: '重庆', lat: 29.5630, lon: 106.5510 },
 ]
 
+const DEFAULT_CITY = POPULAR_CITIES[0]
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 export default function WeatherPage() {
   const [data, setData] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [location, setLocation] = useState('重庆')
+  const [location, setLocation] = useState(DEFAULT_CITY.name)
   const [searchInput, setSearchInput] = useState('')
 
   const fetchWeather = useCallback(async (city: string, lat: number, lon: number) => {
@@ -161,9 +162,9 @@ export default function WeatherPage() {
     }
   }, [])
 
-  // 初始加载重庆天气
+  // 初次进入加载默认城市天气
   useEffect(() => {
-    fetchWeather('重庆', 29.5630, 106.5510)
+    fetchWeather(DEFAULT_CITY.name, DEFAULT_CITY.lat, DEFAULT_CITY.lon)
   }, [fetchWeather])
 
   const handleSearch = () => {

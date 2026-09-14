@@ -5,6 +5,8 @@
  * 在 Electron 中，preload 脚本会注入 window.api。
  */
 
+import { webApiSubset } from './web-api'
+
 // 检查是否在 Electron 环境中
 const isElectron = typeof window !== 'undefined' && 'api' in window
 
@@ -12,8 +14,8 @@ function getApi() {
   if (isElectron) {
     return window.api
   }
-  // 开发环境 mock
-  return createMockApi()
+  // Web 模式：mock 打底（未实现的域），已实现的域用真实 sql.js 实现覆盖
+  return { ...createMockApi(), ...webApiSubset }
 }
 
 function createMockApi() {
@@ -125,4 +127,23 @@ function createMockApi() {
   }
 }
 
-export const ipc = getApi()
+export const ipc = new Proxy({} as ReturnType<typeof getApi>, {
+  get(_target, prop, receiver) {
+    const api = getApi() as Record<string | symbol, unknown>
+    const value = Reflect.get(api, prop, receiver)
+    return typeof value === 'function' ? value.bind(api) : value
+  },
+})
+
+/**
+ * 在 Web 模式下把同一份实现暴露到 window.api。
+ * 好处有两个：
+ * 1. 与 Electron 保持一致 —— 应用代码只认 window.api，无需区分运行环境；
+ * 2. 便于在浏览器控制台/自动化里直接验证数据库读写。
+ *
+ * 注意：`ipc` 是 Proxy，每次访问都重新解析实际实现，
+ * 所以这里晚于模块求值挂载也不会导致页面拿到 mock 的过期引用。
+ */
+if (!isElectron && typeof window !== 'undefined') {
+  Reflect.set(window, 'api', ipc)
+}

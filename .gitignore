@@ -41,6 +41,11 @@ release/
 # Agent memory
 .workbuddy/
 
+# 内部规划与开发日志
+# 这里记的是产品取舍、竞品判断、个人时间安排等草稿，属于私人工作笔记，
+# 不适合作为公开仓库的一部分。（技术决策会以代码注释和 README 的形式公开。）
+docs/
+
 # Test screenshots
 tests/screenshots/
 

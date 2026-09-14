@@ -4,6 +4,7 @@ import { useAiChat } from '@ai/hooks/use-ai-chat'
 import { useClaudeChat } from '@ai/hooks/use-claude-chat'
 import { useUserStore } from '@core/stores'
 import { ipc } from '@core/ipc/ipc-client'
+import { capabilities } from '@core/platform'
 import { Button } from '@components/ui/button'
 import { Send, Square, Key, Trash2, Bot, User, Brain, Copy, Check, Terminal, Loader2 } from 'lucide-react'
 import { cn } from '@lib/utils'
@@ -40,8 +41,12 @@ export default function ChatPage() {
   // DeepSeek fallback hook (仅 Claude 不可用时使用)
   const deepseek = useAiChat({ conversationId: sessionId, onError: setError })
 
-  // 根据 Claude 可用性选择后端
+  // 根据 Claude 可用性选择后端（浏览器环境不具备 CLI，始终走 BYOK 的 DeepSeek 兼容链路）
   useEffect(() => {
+    if (!capabilities.claudeCli) {
+      setUseClaude(false)
+      return
+    }
     if (claude.claudeAvailable === true) {
       setUseClaude(true)
     } else if (claude.claudeAvailable === false && apiKey) {
@@ -123,24 +128,33 @@ export default function ChatPage() {
     return convId || null
   }, [])
 
-  // 初始化对话：从 localStorage 恢复或创建新对话
+  // 初始化对话：从 localStorage 恢复，其次沿用最近一条，最后才新建
   useEffect(() => {
+    const loadConversation = async (id: string, conversations: any[]) => {
+      const msgs = await ipc.conversation.getMessages(id)
+      if (!Array.isArray(msgs) || msgs.length === 0) return false
+      conversationIdRef.current = id
+      setCurrentConvId(id)
+      localStorage.setItem(CONV_ID_KEY, id)
+      // 恢复该对话的 Claude 会话 id，让重开后仍能续接上下文
+      const conv = conversations.find((c: any) => c.id === id)
+      if (conv?.claudeSessionId) claudeSetSessionId(conv.claudeSessionId)
+      loadMessagesIntoHook(msgs)
+      return true
+    }
+
     const initConversation = async () => {
       const list: any[] = await loadConversations()
       try {
         const savedId = localStorage.getItem(CONV_ID_KEY)
-        if (savedId) {
-          const msgs = await ipc.conversation.getMessages(savedId)
-          if (Array.isArray(msgs) && msgs.length > 0) {
-            conversationIdRef.current = savedId
-            setCurrentConvId(savedId)
-            // 恢复上一次的 Claude 会话 id，让重开后 Claude 仍能续接上下文
-            const conv = list.find((c: any) => c.id === savedId)
-            if (conv?.claudeSessionId) claudeSetSessionId(conv.claudeSessionId)
-            loadMessagesIntoHook(msgs)
-            return
-          }
-        }
+        if (savedId && (await loadConversation(savedId, list))) return
+
+        // 没有历史记录（例如第一次打开 demo）时，优先展示最近一条已有对话，
+        // 而不是立刻新建空对话 —— 否则示例内容永远看不到。
+        // 只挑有消息的对话，避免落到自己刚建的空对话上。
+        const candidate = list.find((c: any) => (c.messageCount || 0) > 0)
+        if (candidate && (await loadConversation(candidate.id, list))) return
+
         await createConversation()
       } catch {
         // 浏览器模式降级：不使用持久化
@@ -291,28 +305,9 @@ export default function ChatPage() {
     )
   }
 
-  // 未配置 API Key 且 Claude 不可用
-  if (!useClaude && !apiKey) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
-          <Key className="h-10 w-10 text-primary" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">配置 API Key</h2>
-        <p className="max-w-md text-center text-sm text-muted-foreground">
-          请先在设置页面配置你的 DeepSeek API Key 或安装 Claude Code CLI。
-        </p>
-        <div className="flex gap-3">
-          <Button variant="outline" className="gap-2" onClick={() => window.location.hash = '#/settings'}>
-            ⚙ 设置 API Key
-          </Button>
-          <Button variant="default" className="gap-2" onClick={() => claude.claudeAvailable !== null && setUseClaude(false)}>
-            <Terminal className="h-4 w-4" /> 安装 Claude Code
-          </Button>
-        </div>
-      </div>
-    )
-  }
+  // 未配置密钥时不再整页拦截：历史对话本身（尤其是示例对话）是有意义的演示内容，
+  // 访客应当能看到，只是无法发送新消息。这里改为顶部提示条。
+  const needsApiKey = !useClaude && !apiKey
 
   return (
     <div className="flex h-full">
@@ -328,6 +323,33 @@ export default function ChatPage() {
 
       {/* 聊天区 */}
       <div className="flex h-full flex-1 flex-col">
+      {needsApiKey && (
+        <div className="flex items-center gap-3 border-b border-border/30 bg-primary/5 px-4 py-2.5">
+          <Key className="h-4 w-4 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {capabilities.claudeCli
+              ? '尚未配置模型：请在设置里填入 API Key，或安装 Claude Code CLI 后即可对话。'
+              : '尚未配置模型：填入 API Key（兼容 OpenAI 协议的任意服务）即可开始对话。密钥只保存在你自己的浏览器里。'}
+            <span className="ml-1 text-foreground/70">下面是一段示例对话，可以直接查看。</span>
+          </p>
+          <Button
+            variant="outline"
+            className="h-7 shrink-0 gap-1.5 px-2.5 text-xs"
+            onClick={() => { window.location.hash = '#/settings' }}
+          >
+            ⚙ 去配置
+          </Button>
+          {capabilities.claudeCli && (
+            <Button
+              variant="ghost"
+              className="h-7 shrink-0 gap-1.5 px-2.5 text-xs"
+              onClick={() => claude.claudeAvailable !== null && setUseClaude(false)}
+            >
+              <Terminal className="h-3 w-3" /> 安装 Claude Code
+            </Button>
+          )}
+        </div>
+      )}
       {/* 消息列表 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4">
         {messages.length === 0 ? (
@@ -437,10 +459,10 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+              placeholder={needsApiKey ? '请先配置 API Key 后开始对话…' : '输入消息... (Enter 发送, Shift+Enter 换行)'}
               rows={1}
-              disabled={isStreaming}
-              className="flex-1 resize-none rounded-xl border border-border/40 bg-input/50 px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/60"
+              disabled={isStreaming || needsApiKey}
+              className="flex-1 resize-none rounded-xl border border-border/40 bg-input/50 px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-60"
             />
             {isStreaming ? (
               <Button variant="destructive" size="icon" onClick={stopGeneration} className="h-10 w-10 shrink-0">
@@ -450,11 +472,12 @@ export default function ChatPage() {
               <Button
                 variant="default"
                 size="icon"
-                onClick={handleSend}
-                disabled={!input.trim()}
+                onClick={needsApiKey ? () => { window.location.hash = '#/settings' } : handleSend}
+                disabled={!needsApiKey && !input.trim()}
+                title={needsApiKey ? '去配置 API Key' : '发送'}
                 className="h-10 w-10 shrink-0"
               >
-                <Send className="h-4 w-4" />
+                {needsApiKey ? <Key className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>
             )}
           </div>

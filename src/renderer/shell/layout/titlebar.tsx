@@ -15,11 +15,11 @@ export function Titlebar({ className }: TitlebarProps) {
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground/80">🌸 小零</span>
+        <span className="text-sm font-medium text-foreground/80">🌸 near</span>
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>Sakura Dream v0.1</span>
+        <span>local-first AI workspace</span>
       </div>
     </div>
   )

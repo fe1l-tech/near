@@ -66,7 +66,7 @@ export function Sidebar() {
               exit={{ opacity: 0, width: 0 }}
               className="overflow-hidden whitespace-nowrap text-sm font-semibold text-foreground"
             >
-              小零
+               near
             </motion.span>
           )}
         </AnimatePresence>

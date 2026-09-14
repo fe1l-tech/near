@@ -55,11 +55,9 @@ export const useCalendarStore = create<CalendarState>()(
         try {
           const result = await ipc.calendar.getEvents()
           const dbEvents = Array.isArray(result) ? result : (result as any)?.data || []
-          if (dbEvents.length > 0) {
-            set({ events: dbEvents as CalendarEvent[], loaded: true })
-          } else {
-            set({ loaded: true })
-          }
+          // 注意：即使为空也要覆盖本地状态，否则清空数据或删完日程后，
+          // 从 localStorage 恢复的旧日程会一直留在界面上。
+          set({ events: dbEvents as CalendarEvent[], loaded: true })
         } catch {
           set({ loaded: true })
         }

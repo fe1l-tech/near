@@ -1,11 +1,12 @@
 {
-  "name": "ai-workspace",
+  "name": "near",
   "version": "0.1.0",
-  "description": "小零 — 个人 AI 效率工作台",
+  "description": "near — a local-first AI workspace you actually own",
   "main": "out/main/index.js",
-  "author": "ASUS",
+  "author": "Fe1L-Tech",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "dev:electron": "electron-vite dev",
@@ -56,6 +57,7 @@
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
     "electron-vite": "^3.1.0",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^4.3.3",

@@ -4,7 +4,7 @@
  */
 import { handle } from './index'
 import { claudeManager } from '../services/claude-manager'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, app } from 'electron'
 
 export function registerClaudeIpc(): void {
   // 初始化主窗口引用
@@ -12,6 +12,14 @@ export function registerClaudeIpc(): void {
   if (mainWindow) {
     claudeManager.setMainWindow(mainWindow)
   }
+
+  // 退出前清理所有活跃的 claude 子进程。
+  // 不做这件事就会在应用关闭后残留 claude.exe —— 它们还占着会话与内存，
+  // 而用户以为已经退出了。放在这里而不是主进程入口，是因为清理的对象
+  // 由本模块负责创建，谁创建谁负责回收。
+  app.on('before-quit', () => {
+    claudeManager.killAll()
+  })
 
   // ── claude:check-availability ──
   handle('claude:check-availability', async () => {

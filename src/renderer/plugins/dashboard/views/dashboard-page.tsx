@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { GlassCard } from '@components/glass/glass-card'
-import { Sparkles, Clock, CloudSun, Quote, CheckSquare, Dumbbell, Salad, StickyNote, MessageCircle, ArrowRight } from 'lucide-react'
+import { Sparkles, Clock, CloudSun, Quote, CheckSquare, Dumbbell, Salad, StickyNote, MessageCircle, ArrowRight, Info, X } from 'lucide-react'
 import { useTodoStore } from '@plugins/todo/viewmodels/todo.store'
 import { useMemoStore } from '@plugins/memo/viewmodels/memo.store'
 import { useCalendarStore } from '@plugins/calendar/viewmodels/calendar.store'
 import { ipc } from '@core/ipc/ipc-client'
+import { APP_VERSION } from '@core/build-info'
 import { useUserStore } from '@core/stores'
 import { cn } from '@lib/utils'
 import { format } from 'date-fns'
@@ -17,18 +18,63 @@ interface DailyQuote {
   author: string
 }
 
+interface DemoStatus {
+  active: boolean
+  bannerDismissed: boolean
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  const dateStr = format(today, 'yyyy年 M月 d日 EEEE', { locale: zhCN })
+  const dateStr = format(today, 'yyyy M月 d日 EEEE', { locale: zhCN })
   const [currentTime, setCurrentTime] = useState(today)
   const [dailyQuote, setDailyQuote] = useState<DailyQuote | null>(null)
+  const [demo, setDemo] = useState<DemoStatus | null>(null)
+  const [clearing, setClearing] = useState(false)
 
-  const { todos, getStats: getTodoStats } = useTodoStore()
-  const { memos } = useMemoStore()
-  const { events } = useCalendarStore()
-  const username = useUserStore((s) => s.username) || '洲'
+  const { todos, loaded: todosLoaded, loadFromDb: loadTodos, getStats: getTodoStats } = useTodoStore()
+  const { memos, loaded: memosLoaded, loadFromDb: loadMemos } = useMemoStore()
+  const { events, loaded: eventsLoaded, loadFromDb: loadEvents } = useCalendarStore()
+  const username = useUserStore((s) => s.username)
+
+  // 首页原先不读数据库，冷启动（localStorage 空、DB 有数据）时概览会是空的。
+  // 这里补齐三个 store 的首次加载。
+  useEffect(() => {
+    if (!todosLoaded) loadTodos()
+    if (!memosLoaded) loadMemos()
+    if (!eventsLoaded) loadEvents()
+  }, [todosLoaded, memosLoaded, eventsLoaded, loadTodos, loadMemos, loadEvents])
+
+  // 示例数据提示（仅 Web 版有 demo 域，桌面版返回 undefined）
+  useEffect(() => {
+    const api = ipc as unknown as { demo?: { getStatus: () => Promise<DemoStatus> } }
+    if (!api.demo?.getStatus) return
+    api.demo
+      .getStatus()
+      .then(setDemo)
+      .catch(() => setDemo(null))
+  }, [])
+
+  const dismissDemo = async () => {
+    const api = ipc as unknown as { demo?: { dismissBanner: () => Promise<unknown> } }
+    setDemo((s) => (s ? { ...s, bannerDismissed: true } : s))
+    await api.demo?.dismissBanner()
+  }
+
+  const clearDemo = async () => {
+    const api = ipc as unknown as { demo?: { clearAll: () => Promise<unknown> } }
+    if (!api.demo?.clearAll) return
+    setClearing(true)
+    try {
+      await api.demo.clearAll()
+      // 清库后重新拉取，让界面立刻反映空状态
+      await Promise.all([loadTodos(), loadMemos(), loadEvents()])
+      setDemo({ active: false, bannerDismissed: true })
+    } finally {
+      setClearing(false)
+    }
+  }
 
   // 实时时钟
   useEffect(() => {
@@ -81,9 +127,39 @@ export default function DashboardPage() {
           <p className="mt-1 text-muted-foreground">{dateStr}</p>
         </div>
         <div className="rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-          🌸 Sakura Dream v0.1.0
+          🌸 v{APP_VERSION}
         </div>
       </div>
+
+      {/* 示例数据提示：只在 Web demo 第一次打开时出现 */}
+      {demo?.active && !demo.bannerDismissed && (
+        <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">这是一个在线演示，当前内容是示例数据</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              数据存在你自己浏览器的本地数据库里（IndexedDB），不会上传到任何服务器。
+              你可以直接编辑试用，也可以清空后从零开始。
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={clearDemo}
+              disabled={clearing}
+              className="rounded-lg border border-border/60 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-50"
+            >
+              {clearing ? '清理中…' : '清空数据'}
+            </button>
+            <button
+              onClick={dismissDemo}
+              title="关闭提示"
+              className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 快速入口 */}
       <div className="grid grid-cols-5 gap-3">

@@ -4,6 +4,8 @@ import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { GlassCard } from '@components/glass/glass-card'
 import { ipc } from '@core/ipc/ipc-client'
+import { isElectron } from '@core/platform'
+import { APP_VERSION, BUILD_TIME } from '@core/build-info'
 import {
   Key,
   Brain,
@@ -173,12 +175,12 @@ export default function SettingsPage() {
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="输入你的名字"
+                placeholder="留空则问候语不显示名字"
               />
             </div>
             <div className="rounded-xl border border-primary/10 bg-primary/5 p-4 text-sm text-muted-foreground">
               <p className="font-medium text-primary mb-1">🌸 樱花主题</p>
-              <p>当前使用 Sakura Dream 暗色主题。更多主题选项将在后续版本中添加。</p>
+              <p>当前为内置的 Sakura 暗色主题，更多主题选项会在后续版本加入。</p>
             </div>
           </div>
         </GlassCard>
@@ -189,13 +191,22 @@ export default function SettingsPage() {
         <GlassCard>
           <div className="space-y-4 text-center">
             <div className="text-5xl">🌸</div>
-            <h2 className="text-xl font-bold text-foreground">小零</h2>
-            <p className="text-sm text-muted-foreground">Sakura Dream · v0.1.0</p>
+            <h2 className="text-xl font-bold text-foreground">near</h2>
+            <p className="text-sm text-muted-foreground">
+              local-first AI workspace · v{APP_VERSION}
+            </p>
             <div className="rounded-xl bg-muted/30 p-4 text-sm text-muted-foreground space-y-1">
               <p>🚀 技术栈：React 19 + TypeScript + Tailwind CSS 4</p>
-              <p>🤖 AI 引擎：DeepSeek API</p>
-              <p>💾 数据存储：SQLite (sql.js)</p>
-              <p>🎨 UI 组件：shadcn/ui + Radix UI</p>
+              <p>🤖 AI 引擎：任意 OpenAI 兼容接口（BYOK）</p>
+              <p>💾 数据存储：SQLite（sql.js）· 默认仅存本机</p>
+              <p>🎨 UI 组件：Base UI + Tailwind</p>
+              <p>🖥 运行形态：{isElectron ? '桌面版（Electron）' : '浏览器版（在线演示）'}</p>
+            </div>
+            <div className="rounded-xl border border-border/40 p-3 text-xs text-muted-foreground">
+              <p>构建时间：{BUILD_TIME}</p>
+              <p className="mt-1 text-muted-foreground/70">
+                版本信息随构建自动更新，可用来确认当前运行的是否为最新版本。
+              </p>
             </div>
           </div>
         </GlassCard>
