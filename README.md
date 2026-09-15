@@ -2,11 +2,26 @@
 
 **A local-first AI workspace you actually own — todos, notes and calendar that live on your machine, and an AI that can read and write them.**
 
+### ▶ [Try it in your browser](https://fe1l-tech.github.io/near/) — no install, no account
+
+The live demo runs the real thing: the same schema, the same migrations, SQLite compiled to WebAssembly, persisted into your browser's IndexedDB. It opens with sample data so you can see how the pieces fit; "clear data" empties it if you'd rather start from scratch.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="49%" alt="Dashboard: todos, schedule, notes and daily quote" />
+  <img src="docs/screenshots/chat.png" width="49%" alt="Chat: the assistant creates todos and notes in the same database" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/calendar.png" width="49%" alt="Calendar with month view and upcoming events" />
+  <img src="docs/screenshots/statistics.png" width="49%" alt="Statistics computed from todos, fitness and diet records" />
+</p>
+
 Most "AI productivity" tools keep your data in their cloud and treat the AI as a chat box bolted onto the side. `near` does the opposite:
 
 - **Your data stays local.** Everything lives in a SQLite database on your own disk. No account, no sync, no server of ours.
 - **Bring your own key.** Works with any OpenAI-compatible endpoint. You are never locked to one provider.
 - **The AI actually does things.** It doesn't just chat — it can create todos, write notes and add calendar events, in the same database your UI reads from.
+
+> **Note on the interface language:** the UI is currently Chinese-only. The screenshots above reflect that. English strings and an i18n layer are planned; the codebase already avoids hardcoding where it can.
 
 ---
 
@@ -31,7 +46,7 @@ So the bet here is not the strongest AI. It's *your data, plus a reliable local 
 | Diet & water | ✅ daily nutrition summary |
 | Dashboard | ✅ aggregates todos, notes, calendar and a daily quote |
 | Weather | ✅ Open-Meteo, no API key required |
-| Live demo | 🚧 in progress |
+| Live demo | ✅ [browser build on GitHub Pages](https://fe1l-tech.github.io/near/) |
 
 ## Two ways to run it
 
