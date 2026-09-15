@@ -138,6 +138,8 @@ npx tsc --noEmit -p tsconfig.renderer.json
 
 Tests cover the browser runtime end-to-end: real sql.js plus `fake-indexeddb`, exercising every domain, migration idempotency, persistence across a simulated page reload, and the demo-data state machine.
 
+> **Contributing — or driving an AI agent in this repo?** Read [AGENTS.md](AGENTS.md) first. It documents the non-obvious traps: the shared migration chain that protects user data across renames, why runtime-loaded assets must go through `assetUrl()`, and a Vite duplicate-module pitfall that fails in a thoroughly misleading way.
+
 ## Tech stack
 
 Electron · React 19 · TypeScript (strict) · Vite · Tailwind CSS 4 · Base UI · zustand · sql.js (SQLite via WASM) · Recharts · Vitest
