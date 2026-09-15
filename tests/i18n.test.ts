@@ -80,37 +80,41 @@ describe('翻译函数行为', () => {
     localStorage.clear()
   })
 
-  it('按当前语言返回对应文案', async () => {
+  /**
+   * 取到模块并把语言显式设到一个已知起点。
+   *
+   * 为什么不直接依赖模块初始语言：`current` 来自 localStorage，
+   * 而 localStorage 在同一个测试文件里是共享的。若起点恰好等于
+   * 后面要切换到的语言，`setLanguage` 会走"同值提前返回"分支，
+   * 于是持久化/通知都没发生，断言就会莫名其妙地失败。
+   * 这类"时红时绿"的测试比没有测试更糟。
+   */
+  async function loadAt(language: 'zh' | 'en') {
     const i18n = await import('@core/i18n')
+    const other = language === 'zh' ? 'en' : 'zh'
+    i18n.setLanguage(other)
+    i18n.setLanguage(language)
+    return i18n
+  }
 
-    i18n.setLanguage('zh')
-    expect(i18n.t('nav.home')).toBe('首页')
-
-    i18n.setLanguage('en')
-    expect(i18n.t('nav.home')).toBe('Home')
+  it('按当前语言返回对应文案', async () => {
+    expect((await loadAt('zh')).t('nav.home')).toBe('首页')
+    expect((await loadAt('en')).t('nav.home')).toBe('Home')
   })
 
   it('支持 {name} 占位符插值', async () => {
-    const i18n = await import('@core/i18n')
-
-    i18n.setLanguage('zh')
-    expect(i18n.t('dashboard.completionRate', { rate: 33 })).toBe('完成率 33%')
-
-    i18n.setLanguage('en')
-    expect(i18n.t('dashboard.completionRate', { rate: 33 })).toBe('33% complete')
+    expect((await loadAt('zh')).t('dashboard.completionRate', { rate: 33 })).toBe('完成率 33%')
+    expect((await loadAt('en')).t('dashboard.completionRate', { rate: 33 })).toBe('33% complete')
   })
 
   it('未提供的占位符保持原样，不会渲染成 undefined', async () => {
-    const i18n = await import('@core/i18n')
-    i18n.setLanguage('en')
-    const text = i18n.t('statistics.itemsCompleted')
+    const text = (await loadAt('en')).t('statistics.itemsCompleted')
     expect(text).not.toContain('undefined')
     expect(text).toContain('{n}')
   })
 
   it('切换语言会通知订阅者（切换器依赖这条链）', async () => {
-    const i18n = await import('@core/i18n')
-    i18n.setLanguage('zh')
+    const i18n = await loadAt('zh')
 
     const listener = vi.fn()
     const unsubscribe = i18n.subscribeLanguage(listener)
@@ -128,15 +132,11 @@ describe('翻译函数行为', () => {
   })
 
   it('语言选择会持久化，供下次启动恢复', async () => {
-    const i18n = await import('@core/i18n')
-    // 先切到与初始值不同的语言，确保真的发生变更
-    // （setLanguage 对同值会提前返回，不重复写盘）
-    i18n.setLanguage('zh')
+    const i18n = await loadAt('zh')
+    expect(localStorage.getItem('near-language')).toBe('zh')
+
     i18n.setLanguage('en')
     expect(localStorage.getItem('near-language')).toBe('en')
-
-    i18n.setLanguage('zh')
-    expect(localStorage.getItem('near-language')).toBe('zh')
   })
 
   it('启动时读取已保存的语言偏好', async () => {
