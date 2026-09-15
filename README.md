@@ -144,7 +144,9 @@ Electron · React 19 · TypeScript (strict) · Vite · Tailwind CSS 4 · Base UI
 
 ## Status
 
-Early. The desktop app is used daily by its author; the browser build is being prepared as a public demo. Expect rough edges, and expect the module set to be trimmed down — 11 modules is more than the product needs.
+Early, and honest about it. The desktop app is used daily by its author; the browser build is live (linked at the top) and is how most people will first see this. Expect rough edges, and expect the module set to be trimmed — 11 modules is more than the product needs.
+
+Not done yet, and not claimed: no encrypted secret storage (`safeStorage`), no auto-update, no i18n layer, and the local database is exported whole on write rather than incrementally.
 
 ## License
 
