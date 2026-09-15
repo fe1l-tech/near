@@ -21,7 +21,7 @@ Most "AI productivity" tools keep your data in their cloud and treat the AI as a
 - **Bring your own key.** Works with any OpenAI-compatible endpoint. You are never locked to one provider.
 - **The AI actually does things.** It doesn't just chat — it can create todos, write notes and add calendar events, in the same database your UI reads from.
 
-> **Note on the interface language:** the UI is currently Chinese-only. The screenshots above reflect that. English strings and an i18n layer are planned; the codebase already avoids hardcoding where it can.
+> **Interface language:** the UI ships in English and Simplified Chinese, switchable at any time from the sidebar or Settings → Appearance, and the choice is remembered. Dates, weekday labels and the daily quote all follow the selected language. Product content you create yourself (notes, todos) is of course whatever you write.
 
 ---
 
@@ -100,6 +100,7 @@ A few deliberate decisions worth calling out:
 - **One schema, two hosts.** `src/shared/db/schema.ts` is the single source of truth; the Electron main process and the browser both call the same `runMigrations()`. There is no second, drifting copy of the schema.
 - **The renderer never talks to a database directly.** It talks to a `window.api` contract. Electron fills that contract with IPC calls; the browser fills it with real SQL over sql.js. Module code is identical in both.
 - **Capability flags over platform checks.** `src/renderer/core/platform.ts` declares what the current runtime supports, so UI code asks "can this runtime use the Claude CLI?" instead of sniffing for Electron.
+- **Translations are typesafe.** `src/renderer/core/i18n/types.ts` derives the key set from the Chinese dictionary's structure, so the English dictionary must be shape-identical — a missing or misspelled key fails `tsc` rather than rendering a raw key on screen. `tests/i18n.test.ts` also enforces matching placeholders per key.
 - **Optimistic UI, write-through storage.** View models update in-memory state first and persist afterwards, so the UI never waits on disk.
 - **Throttled persistence in the browser.** `db.export()` serialises the whole database, so writes are debounced (400 ms) and flushed on `visibilitychange` / `pagehide` instead of on every keystroke.
 
@@ -148,7 +149,7 @@ Electron · React 19 · TypeScript (strict) · Vite · Tailwind CSS 4 · Base UI
 
 Early, and honest about it. The desktop app is used daily by its author; the browser build is live (linked at the top) and is how most people will first see this. Expect rough edges, and expect the module set to be trimmed — 11 modules is more than the product needs.
 
-Not done yet, and not claimed: no encrypted secret storage (`safeStorage`), no auto-update, no i18n layer, and the local database is exported whole on write rather than incrementally.
+Not done yet, and not claimed: no encrypted secret storage (`safeStorage`), no auto-update, and the local database is exported whole on write rather than incrementally.
 
 ## License
 

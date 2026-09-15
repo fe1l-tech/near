@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # 同一分支的重复推送取消旧任务，避免排队
 concurrency:
@@ -26,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Environment info
+        run: node -v && npm -v && uname -a
+
       - name: Typecheck (main)
         run: npx tsc --noEmit -p tsconfig.main.json
 
@@ -36,9 +40,23 @@ jobs:
         run: npx tsc --noEmit -p tsconfig.renderer.json
 
       - name: Test
-        run: npm test
+        # tee 保证失败时也留下完整输出，供下面的产物上传取回
+        run: npm test 2>&1 | tee test-output.txt
 
       # 只构建 renderer：桌面版的 main/preload 依赖 Electron，
       # 在 CI 上跑没有收益（真正需要验证的是浏览器产物）
       - name: Build renderer
         run: npx vite build
+
+      # 临时诊断：测试失败时把完整输出作为产物上传，便于匿名取回分析。
+      # （GitHub 的 job 日志接口需要仓库管理员权限，公开仓库也拿不到。）
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: |
+            test-output.txt
+            npm-debug.log
+          if-no-files-found: ignore
+          retention-days: 3
