@@ -205,7 +205,11 @@ export default function DashboardPage() {
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{t('dashboard.dailyQuote')}</p>
             <p className="text-sm font-medium text-foreground line-clamp-1">
-              {dailyQuote ? `"${language === 'zh' ? dailyQuote.quote_text : dailyQuote.quote_text}"` : t('common.loading')}
+              {/* 语录有原文（多为英文）与中文译文两份，按当前语言取用；
+                  中文缺失时回退到原文，避免出现空行 */}
+              {dailyQuote
+                ? `"${(language === 'zh' ? dailyQuote.quote_zh || dailyQuote.quote_text : dailyQuote.quote_text)}"`
+                : t('common.loading')}
             </p>
             <p className="text-xs text-muted-foreground">
               {dailyQuote ? `— ${dailyQuote.author}` : ''}
