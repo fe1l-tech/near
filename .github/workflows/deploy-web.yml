@@ -1,0 +1,57 @@
+name: Deploy web demo to GitHub Pages
+
+# 只发布浏览器版（纯静态产物）。
+# 桌面版（Electron）不在这里构建：它需要打包安装程序，与 Pages 无关。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build static demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        # APP_BASE 必须与 Pages 实际路径一致，否则 sql.js 的 wasm
+        # 会在运行时 404，表现为数据库无法初始化。
+        # 路径规则：https://<owner>.github.io/<repo>/
+        env:
+          APP_BASE: /${{ github.event.repository.name }}/
+        run: npx vite build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/renderer
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

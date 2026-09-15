@@ -11,6 +11,7 @@
 
 import initSqlJs from 'sql.js'
 import { runMigrations } from '@shared/db/migrations'
+import { assetUrl } from '../build-info'
 
 export interface SqlDatabase {
   run(sql: string, params?: unknown[]): unknown
@@ -214,11 +215,14 @@ export function scheduleSave(): void {
  * 「expected magic word ... found 3c 21 64 6f」（即拿到了 index.html），
  * 很难定位。这里改为自己 fetch，既可控又能在失败时给出明确状态码。
  *
+ * 路径取自构建时注入的部署前缀（assetUrl），**不要**改用
+ * `window.location.pathname`：开发服务器与正式部署的取值不同，
+ * 并且会把仓库子路径重复拼进 URL（`/near/near/sql-wasm.wasm`）。
+ *
  * 文件由 `vite.config.ts` 的 sqlJsWasm 插件放到产物根目录。
  */
 async function loadWasmBinary(file: string): Promise<ArrayBuffer> {
-  const dir = window.location.pathname.replace(/\/[^/]*$/, '')
-  const url = `${dir}/${file}`.replace(/\/{2,}/g, '/')
+  const url = assetUrl(file)
 
   const response = await fetch(url)
   if (!response.ok) {

@@ -9,3 +9,6 @@ declare const __APP_VERSION__: string
 
 /** 构建时间（本地时间，YYYY-MM-DD HH:mm），构建时写入 */
 declare const __BUILD_TIME__: string
+
+/** 部署基础路径（以 / 开头和结尾），构建时写入；本地构建为 "/" */
+declare const __APP_BASE__: string

@@ -40,18 +40,34 @@ function sqlJsWasm(): Plugin {
   }
 }
 
+/**
+ * 部署基础路径。
+ *
+ * 本地构建为 '/'；部署到 GitHub Pages 的仓库子路径时由环境变量
+ * `APP_BASE=/near/` 指定（CI 里设置）。
+ *
+ * 为什么需要单独一个变量：`base: './'` 只能影响打包出的资源引用，
+ * 而 sql.js 的 wasm 是运行时拼 URL 加载的，Vite 改写不了。
+ */
+const appBase = (() => {
+  const raw = process.env.APP_BASE || '/'
+  const withLeading = raw.startsWith('/') ? raw : `/${raw}`
+  return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
+})()
+
 export default defineConfig({
   plugins: [react(), sqlJsWasm()],
   root: 'src/renderer',
   base: './',
   /**
-   * 构建时注入版本与构建时间。
-   * 用途：应用内的「关于」页会显示它们，从而能一眼判断
-   * 当前跑的桌面版是不是最新构建 —— 以前只能靠猜。
+   * 构建时注入版本、构建时间与部署前缀。
+   * 用途：应用内「关于」页会显示版本与构建时间，
+   * 可用来一眼判断当前跑的桌面版是不是最新构建 —— 以前只能靠猜。
    */
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ')),
+    __APP_BASE__: JSON.stringify(appBase),
   },
   resolve: {
     alias: {

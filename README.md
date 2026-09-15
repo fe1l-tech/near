@@ -62,6 +62,9 @@ In this mode the app runs entirely client-side: the same SQLite schema is execut
 
 Browser mode is why the project's data layer was made host-agnostic: `src/shared/db/` holds the schema and migrations, and both the Electron main process and the browser build run the exact same migrations.
 
+The browser build is published to GitHub Pages by
+[`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml). One deployment subtlety is worth knowing: `base: './'` makes bundled assets relative, but sql.js resolves its `.wasm` file **at runtime**, so Vite cannot rewrite that URL. The workflow therefore passes `APP_BASE=/<repo>/`, and `src/renderer/core/build-info.ts` turns it into the wasm URL. Get this wrong and the wasm 404s into an opaque *"expected magic word"* error, because static hosts answer the missing path with `index.html`.
+
 ## Architecture
 
 ```
@@ -102,6 +105,12 @@ npm run dev:electron # full desktop app in dev mode
 npm test             # vitest
 npm run lint         # biome
 npm run build        # full build
+```
+
+For a sub-path deployment (GitHub Pages, or any reverse proxy under a prefix), set the base path at build time:
+
+```bash
+APP_BASE=/near/ npx vite build
 ```
 
 Type-checking is split by target:
