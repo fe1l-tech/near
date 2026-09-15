@@ -6,10 +6,11 @@ import { useMemoStore } from '@plugins/memo/viewmodels/memo.store'
 import { useCalendarStore } from '@plugins/calendar/viewmodels/calendar.store'
 import { ipc } from '@core/ipc/ipc-client'
 import { APP_VERSION } from '@core/build-info'
+import { useI18n } from '@core/i18n'
 import { useUserStore } from '@core/stores'
 import { cn } from '@lib/utils'
 import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { enUS, zhCN } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
 
 interface DailyQuote {
@@ -25,9 +26,13 @@ interface DemoStatus {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { t, language } = useI18n()
+  const dateLocale = language === 'zh' ? zhCN : enUS
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  const dateStr = format(today, 'yyyy M月 d日 EEEE', { locale: zhCN })
+  const dateStr = format(today, language === 'zh' ? 'yyyy M月 d日 EEEE' : 'EEEE, MMMM d, yyyy', {
+    locale: dateLocale,
+  })
   const [currentTime, setCurrentTime] = useState(today)
   const [dailyQuote, setDailyQuote] = useState<DailyQuote | null>(null)
   const [demo, setDemo] = useState<DemoStatus | null>(null)
@@ -105,15 +110,23 @@ export default function DashboardPage() {
 
   // 时段问候语
   const hour = currentTime.getHours()
-  const greeting = hour < 6 ? '夜深了' : hour < 9 ? '早上好' : hour < 12 ? '上午好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好'
+  const greetingKey =
+    hour < 6 ? 'dashboard.greeting.night'
+    : hour < 9 ? 'dashboard.greeting.morning'
+    : hour < 12 ? 'dashboard.greeting.forenoon'
+    : hour < 14 ? 'dashboard.greeting.noon'
+    : hour < 18 ? 'dashboard.greeting.afternoon'
+    : 'dashboard.greeting.evening'
+  // 中文用全角逗号衔接称呼，英文用半角逗号加空格
+  const greeting = `${t(greetingKey)}${username ? (language === 'zh' ? '，' : ', ') + username : ''}`
 
   // 快速导航
   const quickLinks = [
-    { label: 'AI 对话', icon: MessageCircle, path: '/chat', color: 'text-primary', bg: 'bg-primary/10' },
-    { label: '待办', icon: CheckSquare, path: '/todo', color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { label: '健身', icon: Dumbbell, path: '/fitness', color: 'text-orange-400', bg: 'bg-orange-400/10' },
-    { label: '饮食', icon: Salad, path: '/diet', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    { label: '笔记', icon: StickyNote, path: '/memo', color: 'text-sky-400', bg: 'bg-sky-400/10' },
+    { label: t('dashboard.quickChat'), icon: MessageCircle, path: '/chat', color: 'text-primary', bg: 'bg-primary/10' },
+    { label: t('dashboard.quickTodo'), icon: CheckSquare, path: '/todo', color: 'text-amber-400', bg: 'bg-amber-400/10' },
+    { label: t('dashboard.quickFitness'), icon: Dumbbell, path: '/fitness', color: 'text-orange-400', bg: 'bg-orange-400/10' },
+    { label: t('dashboard.quickDiet'), icon: Salad, path: '/diet', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+    { label: t('dashboard.quickMemo'), icon: StickyNote, path: '/memo', color: 'text-sky-400', bg: 'bg-sky-400/10' },
   ]
 
   return (
@@ -122,7 +135,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            👋 {greeting}{username ? `，${username}` : ''}
+            👋 {greeting}
           </h1>
           <p className="mt-1 text-muted-foreground">{dateStr}</p>
         </div>
@@ -136,11 +149,8 @@ export default function DashboardPage() {
         <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">这是一个在线演示，当前内容是示例数据</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              数据存在你自己浏览器的本地数据库里（IndexedDB），不会上传到任何服务器。
-              你可以直接编辑试用，也可以清空后从零开始。
-            </p>
+            <p className="text-sm font-medium text-foreground">{t('demo.bannerTitle')}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('demo.bannerBody')}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -148,11 +158,11 @@ export default function DashboardPage() {
               disabled={clearing}
               className="rounded-lg border border-border/60 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-50"
             >
-              {clearing ? '清理中…' : '清空数据'}
+              {clearing ? t('demo.clearing') : t('demo.clearData')}
             </button>
             <button
               onClick={dismissDemo}
-              title="关闭提示"
+              title={t('demo.dismiss')}
               className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -181,9 +191,9 @@ export default function DashboardPage() {
             <Clock className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">当前时间</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.currentTime')}</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {format(currentTime, 'HH:mm', { locale: zhCN })}
+              {format(currentTime, 'HH:mm', { locale: dateLocale })}
             </p>
           </div>
         </GlassCard>
@@ -193,9 +203,9 @@ export default function DashboardPage() {
             <Quote className="h-6 w-6 text-purple-400" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">每日语录</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.dailyQuote')}</p>
             <p className="text-sm font-medium text-foreground line-clamp-1">
-              {dailyQuote ? `"${dailyQuote.quote_text}"` : '加载中...'}
+              {dailyQuote ? `"${language === 'zh' ? dailyQuote.quote_text : dailyQuote.quote_text}"` : t('common.loading')}
             </p>
             <p className="text-xs text-muted-foreground">
               {dailyQuote ? `— ${dailyQuote.author}` : ''}
@@ -208,12 +218,16 @@ export default function DashboardPage() {
             <Sparkles className="h-6 w-6 text-sky-400" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">效率概览</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.overview')}</p>
             <p className="text-sm font-medium text-foreground">
-              待办 {todoStats.completed}/{todoStats.total} · 笔记 {memos.length} 篇
+              {t('dashboard.overviewSummary', {
+                completed: todoStats.completed,
+                total: todoStats.total,
+                memos: memos.length,
+              })}
             </p>
             <p className="text-xs text-muted-foreground">
-              完成率 {todoStats.completionRate}%
+              {t('dashboard.completionRate', { rate: todoStats.completionRate })}
             </p>
           </div>
         </GlassCard>
@@ -226,15 +240,15 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-amber-400" />
-              <h3 className="font-semibold text-sm text-foreground">今日待办</h3>
+              <h3 className="font-semibold text-sm text-foreground">{t('dashboard.todayTodos')}</h3>
             </div>
             <button onClick={() => navigate('/todo')}
               className="flex items-center gap-1 text-xs text-primary hover:underline">
-              查看全部 <ArrowRight className="h-3 w-3" />
+              {t('dashboard.viewAll')} <ArrowRight className="h-3 w-3" />
             </button>
           </div>
           {pendingTodos.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">暂无待办，去添加一个吧 ✨</p>
+            <p className="text-sm text-muted-foreground text-center py-4">{t('dashboard.noTodos')}</p>
           ) : (
             <div className="space-y-2">
               {pendingTodos.map((todo) => (
@@ -246,7 +260,7 @@ export default function DashboardPage() {
                   <span className={cn('text-sm', todo.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground')}>
                     {todo.title}
                   </span>
-                  {todo.priority === 'urgent' && <span className="text-[10px] text-red-400 font-medium">紧急</span>}
+                  {todo.priority === 'urgent' && <span className="text-[10px] text-red-400 font-medium">{t('dashboard.urgent')}</span>}
                   {todo.dueDate && <span className="ml-auto text-[10px] text-muted-foreground">{todo.dueDate}</span>}
                 </div>
               ))}
@@ -271,15 +285,15 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                <h3 className="font-semibold text-sm text-foreground">今日日程</h3>
+                <h3 className="font-semibold text-sm text-foreground">{t('dashboard.todaySchedule')}</h3>
               </div>
               <button onClick={() => navigate('/calendar')}
                 className="flex items-center gap-1 text-xs text-primary hover:underline">
-                日历 <ArrowRight className="h-3 w-3" />
+                {t('nav.calendar')} <ArrowRight className="h-3 w-3" />
               </button>
             </div>
             {todayEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-3">今天没有安排</p>
+              <p className="text-sm text-muted-foreground text-center py-3">{t('dashboard.noEvents')}</p>
             ) : (
               <div className="space-y-1.5">
                 {todayEvents.map((ev) => (
@@ -298,15 +312,15 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <StickyNote className="h-4 w-4 text-sky-400" />
-                <h3 className="font-semibold text-sm text-foreground">最近笔记</h3>
+                <h3 className="font-semibold text-sm text-foreground">{t('dashboard.recentMemos')}</h3>
               </div>
               <button onClick={() => navigate('/memo')}
                 className="flex items-center gap-1 text-xs text-primary hover:underline">
-                全部 <ArrowRight className="h-3 w-3" />
+                {t('common.all')} <ArrowRight className="h-3 w-3" />
               </button>
             </div>
             {recentMemos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-3">还没有笔记</p>
+              <p className="text-sm text-muted-foreground text-center py-3">{t('dashboard.noMemos')}</p>
             ) : (
               <div className="space-y-2">
                 {recentMemos.map((memo) => (

@@ -6,6 +6,9 @@ import { GlassCard } from '@components/glass/glass-card'
 import { ipc } from '@core/ipc/ipc-client'
 import { isElectron } from '@core/platform'
 import { APP_VERSION, BUILD_TIME } from '@core/build-info'
+import { useI18n, setLanguage } from '@core/i18n'
+import { LANGUAGES } from '@core/i18n/language'
+import { Trans } from '@core/i18n/trans'
 import {
   Key,
   Brain,
@@ -16,10 +19,12 @@ import {
   Save,
   Check,
   ExternalLink,
+  Languages,
 } from 'lucide-react'
 import { cn } from '@lib/utils'
 
 export default function SettingsPage() {
+  const { t, language } = useI18n()
   const [activeTab, setActiveTab] = useState<'ai' | 'appearance' | 'about'>('ai')
   const [showKey, setShowKey] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -61,14 +66,14 @@ export default function SettingsPage() {
   }
 
   const tabs = [
-    { id: 'ai' as const, label: 'AI 配置', icon: Brain },
-    { id: 'appearance' as const, label: '外观', icon: Palette },
-    { id: 'about' as const, label: '关于', icon: Info },
+    { id: 'ai' as const, label: t('settings.tabs.ai'), icon: Brain },
+    { id: 'appearance' as const, label: t('settings.tabs.appearance'), icon: Palette },
+    { id: 'about' as const, label: t('settings.tabs.about'), icon: Info },
   ]
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">⚙ 设置</h1>
+      <h1 className="text-2xl font-bold text-foreground">⚙ {t('settings.title')}</h1>
 
       {/* Tab 切换 */}
       <div className="flex gap-1 rounded-xl bg-muted/50 p-1 w-fit">
@@ -96,11 +101,11 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Key className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-foreground">API 配置</h2>
+                <h2 className="font-semibold text-foreground">{t('settings.aiConfig')}</h2>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">DeepSeek API Key</label>
+                <label className="text-sm font-medium text-foreground">{t('settings.apiKey')}</label>
                 <div className="relative">
                   <Input
                     type={showKey ? 'text' : 'password'}
@@ -117,21 +122,24 @@ export default function SettingsPage() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  在{' '}
-                  <a
-                    href="https://platform.deepseek.com/api_keys"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary hover:underline inline-flex items-center gap-0.5"
-                  >
-                    platform.deepseek.com <ExternalLink className="h-3 w-3" />
-                  </a>{' '}
-                  获取 API Key
+                  <Trans
+                    k="settings.getKeyAt"
+                    link={
+                      <a
+                        href="https://platform.deepseek.com/api_keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-0.5"
+                      >
+                        platform.deepseek.com <ExternalLink className="h-3 w-3" />
+                      </a>
+                    }
+                  />
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">默认模型</label>
+                <label className="text-sm font-medium text-foreground">{t('settings.defaultModel')}</label>
                 <select
                   value={defaultModel}
                   onChange={(e) => setDefaultModel(e.target.value)}
@@ -150,12 +158,12 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Info className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-foreground">使用说明</h2>
+                <h2 className="font-semibold text-foreground">{t('settings.usage')}</h2>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• API Key 仅存储在你的本地设备上，不会上传到任何服务器</li>
-                <li>• DeepSeek V3：通用对话，速度快，成本低</li>
-                <li>• DeepSeek R1：深度推理，会展示思考过程</li>
+                <li>• {t('settings.keyLocalOnly')}</li>
+                <li>• {t('settings.modelChat')}</li>
+                <li>• {t('settings.modelReasoner')}</li>
               </ul>
             </div>
           </GlassCard>
@@ -164,26 +172,55 @@ export default function SettingsPage() {
 
       {/* 外观 */}
       {activeTab === 'appearance' && (
-        <GlassCard>
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold text-foreground">外观设置</h2>
+        <div className="space-y-4">
+          <GlassCard>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Palette className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold text-foreground">{t('settings.appearance')}</h2>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">{t('settings.username')}</label>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder={t('settings.usernamePlaceholder')}
+                />
+              </div>
+              <div className="rounded-xl border border-primary/10 bg-primary/5 p-4 text-sm text-muted-foreground">
+                <p className="font-medium text-primary mb-1">{t('settings.sakuraTheme')}</p>
+                <p>{t('settings.sakuraThemeBody')}</p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">用户名</label>
-              <Input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="留空则问候语不显示名字"
-              />
+          </GlassCard>
+
+          {/* 语言切换：放在设置里作为明确入口，侧栏底部另有一键切换 */}
+          <GlassCard>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Languages className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold text-foreground">{t('settings.languageSection')}</h2>
+              </div>
+              <div className="flex gap-2">
+                {LANGUAGES.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setLanguage(item.id)}
+                    className={cn(
+                      'flex-1 rounded-xl border px-4 py-3 text-sm transition-colors',
+                      language === item.id
+                        ? 'border-primary/40 bg-primary/10 font-medium text-primary'
+                        : 'border-border/40 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{t('common.languageHint')}</p>
             </div>
-            <div className="rounded-xl border border-primary/10 bg-primary/5 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-primary mb-1">🌸 樱花主题</p>
-              <p>当前为内置的 Sakura 暗色主题，更多主题选项会在后续版本加入。</p>
-            </div>
-          </div>
-        </GlassCard>
+          </GlassCard>
+        </div>
       )}
 
       {/* 关于 */}
@@ -196,38 +233,38 @@ export default function SettingsPage() {
               local-first AI workspace · v{APP_VERSION}
             </p>
             <div className="rounded-xl bg-muted/30 p-4 text-sm text-muted-foreground space-y-1">
-              <p>🚀 技术栈：React 19 + TypeScript + Tailwind CSS 4</p>
-              <p>🤖 AI 引擎：任意 OpenAI 兼容接口（BYOK）</p>
-              <p>💾 数据存储：SQLite（sql.js）· 默认仅存本机</p>
-              <p>🎨 UI 组件：Base UI + Tailwind</p>
-              <p>🖥 运行形态：{isElectron ? '桌面版（Electron）' : '浏览器版（在线演示）'}</p>
+              <p>{t('settings.techStack')}</p>
+              <p>{t('settings.aiEngine')}</p>
+              <p>{t('settings.storage')}</p>
+              <p>{t('settings.uiKit')}</p>
+              <p>{isElectron ? t('settings.runtimeDesktop') : t('settings.runtimeBrowser')}</p>
             </div>
             <div className="rounded-xl border border-border/40 p-3 text-xs text-muted-foreground">
-              <p>构建时间：{BUILD_TIME}</p>
-              <p className="mt-1 text-muted-foreground/70">
-                版本信息随构建自动更新，可用来确认当前运行的是否为最新版本。
-              </p>
+              <p>{t('settings.buildTime', { time: BUILD_TIME })}</p>
+              <p className="mt-1 text-muted-foreground/70">{t('settings.buildTimeHint')}</p>
             </div>
           </div>
         </GlassCard>
       )}
 
-      {/* 保存按钮 */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} className="gap-2" disabled={saved}>
-          {saved ? (
-            <>
-              <Check className="h-4 w-4" />
-              已保存
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              保存设置
-            </>
-          )}
-        </Button>
-      </div>
+      {/* 保存按钮（只对 AI 配置有意义，其他标签页隐藏以免误导） */}
+      {activeTab === 'ai' && (
+        <div className="flex justify-end">
+          <Button onClick={handleSave} className="gap-2" disabled={saved}>
+            {saved ? (
+              <>
+                <Check className="h-4 w-4" />
+                {t('common.saved')}
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                {t('common.saveSettings')}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -16,36 +16,46 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Languages,
 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip'
+import { useI18n, setLanguage } from '@core/i18n'
+import { LANGUAGES } from '@core/i18n/language'
+import type { TranslationKey } from '@core/i18n/types'
 
 interface NavItem {
   path: string
-  label: string
+  labelKey: TranslationKey
   icon: typeof LayoutDashboard
   shortcut?: string
 }
 
 const mainNavItems: NavItem[] = [
-  { path: '/', label: '首页', icon: LayoutDashboard, shortcut: 'H' },
-  { path: '/chat', label: 'AI 聊天', icon: MessageSquare, shortcut: 'L' },
-  { path: '/calendar', label: '日历', icon: Calendar, shortcut: 'C' },
-  { path: '/todo', label: '今日计划', icon: CheckSquare, shortcut: 'T' },
-  { path: '/fitness', label: '健身计划', icon: Dumbbell },
-  { path: '/diet', label: '饮食计划', icon: Salad },
-  { path: '/memo', label: '备忘录', icon: StickyNote, shortcut: 'M' },
-  { path: '/weather', label: '天气', icon: CloudSun },
-  { path: '/statistics', label: '数据统计', icon: BarChart3 },
+  { path: '/', labelKey: 'nav.home', icon: LayoutDashboard, shortcut: 'H' },
+  { path: '/chat', labelKey: 'nav.chat', icon: MessageSquare, shortcut: 'L' },
+  { path: '/calendar', labelKey: 'nav.calendar', icon: Calendar, shortcut: 'C' },
+  { path: '/todo', labelKey: 'nav.todo', icon: CheckSquare, shortcut: 'T' },
+  { path: '/fitness', labelKey: 'nav.fitness', icon: Dumbbell },
+  { path: '/diet', labelKey: 'nav.diet', icon: Salad },
+  { path: '/memo', labelKey: 'nav.memo', icon: StickyNote, shortcut: 'M' },
+  { path: '/weather', labelKey: 'nav.weather', icon: CloudSun },
+  { path: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
 ]
 
-const bottomNavItems: NavItem[] = [
-  { path: '/settings', label: '设置', icon: Settings },
-]
+const bottomNavItems: NavItem[] = [{ path: '/settings', labelKey: 'nav.settings', icon: Settings }]
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
+  const { t, language } = useI18n()
+
+  /** 侧栏底部的一键切换：在支持的语言之间轮换 */
+  const cycleLanguage = () => {
+    const index = LANGUAGES.findIndex((l) => l.id === language)
+    const next = LANGUAGES[(index + 1) % LANGUAGES.length]
+    setLanguage(next.id)
+  }
 
   return (
     <motion.aside
@@ -66,7 +76,7 @@ export function Sidebar() {
               exit={{ opacity: 0, width: 0 }}
               className="overflow-hidden whitespace-nowrap text-sm font-semibold text-foreground"
             >
-               near
+              near
             </motion.span>
           )}
         </AnimatePresence>
@@ -88,9 +98,9 @@ export function Sidebar() {
             }
           >
             <Plus className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>新建对话</span>}
+            {!collapsed && <span>{t('nav.newConversation')}</span>}
           </TooltipTrigger>
-          {collapsed && <TooltipContent side="right">新建对话</TooltipContent>}
+          {collapsed && <TooltipContent side="right">{t('nav.newConversation')}</TooltipContent>}
         </Tooltip>
       </div>
 
@@ -100,6 +110,7 @@ export function Sidebar() {
           <SidebarItem
             key={item.path}
             item={item}
+            label={t(item.labelKey)}
             collapsed={collapsed}
             isActive={location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))}
           />
@@ -112,10 +123,39 @@ export function Sidebar() {
           <SidebarItem
             key={item.path}
             item={item}
+            label={t(item.labelKey)}
             collapsed={collapsed}
             isActive={location.pathname.startsWith(item.path)}
           />
         ))}
+      </div>
+
+      {/* 语言切换 */}
+      <div className="border-t border-border/20 px-2 py-2">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                onClick={cycleLanguage}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground',
+                  collapsed && 'justify-center px-0',
+                )}
+              />
+            }
+          >
+            <Languages className="h-5 w-5 shrink-0" />
+            {!collapsed && (
+              <>
+                <span className="flex-1 truncate text-left">{t('common.language')}</span>
+                <span className="text-xs text-muted-foreground/70">
+                  {language === 'zh' ? '中' : 'EN'}
+                </span>
+              </>
+            )}
+          </TooltipTrigger>
+          <TooltipContent side="right">{t('common.languageHint')}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* 折叠按钮 */}
@@ -133,10 +173,12 @@ export function Sidebar() {
 
 function SidebarItem({
   item,
+  label,
   collapsed,
   isActive,
 }: {
   item: NavItem
+  label: string
   collapsed: boolean
   isActive: boolean
 }) {
@@ -161,7 +203,7 @@ function SidebarItem({
       >
         <Icon className={cn('h-5 w-5 shrink-0', isActive && 'text-primary')} />
         {!collapsed && (
-          <span className="flex-1 truncate">{item.label}</span>
+          <span className="flex-1 truncate">{label}</span>
         )}
         {!collapsed && item.shortcut && (
           <kbd className="ml-auto hidden rounded-md border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground/60 lg:inline">
@@ -169,7 +211,7 @@ function SidebarItem({
           </kbd>
         )}
       </TooltipTrigger>
-      {collapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
+      {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
     </Tooltip>
   )
 }

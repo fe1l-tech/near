@@ -1,10 +1,13 @@
 import { cn } from '@lib/utils'
+import { useI18n } from '@core/i18n'
 
 interface TitlebarProps {
   className?: string
 }
 
 export function Titlebar({ className }: TitlebarProps) {
+  const { t } = useI18n()
+
   return (
     <div
       className={cn(
@@ -19,7 +22,7 @@ export function Titlebar({ className }: TitlebarProps) {
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>local-first AI workspace</span>
+        <span>{t('titlebar.tagline')}</span>
       </div>
     </div>
   )
