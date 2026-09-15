@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { cn } from '@lib/utils'
 import { Plus, MessageSquare, Trash2, Search, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { enUS, zhCN } from 'date-fns/locale'
+import { useI18n } from '@core/i18n'
+import type { Language } from '@core/i18n/language'
 
 export interface ConversationItem {
   id: string
@@ -22,19 +24,21 @@ interface ConversationListProps {
   onDelete: (id: string) => void
 }
 
-function formatTime(iso?: string): string {
+/** 会话列表里的时间戳：今天显示时刻，昨天显示「昨天」，更早显示日期 */
+function formatTime(iso: string | undefined, language: Language, yesterdayLabel: string): string {
   if (!iso) return ''
   const date = new Date(iso)
   const now = new Date()
+  const locale = language === 'zh' ? zhCN : enUS
   const sameDay = date.toDateString() === now.toDateString()
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
   if (sameDay) return format(date, 'HH:mm')
-  if (date.toDateString() === yesterday.toDateString()) return '昨天'
+  if (date.toDateString() === yesterday.toDateString()) return yesterdayLabel
   if (date.getFullYear() === now.getFullYear()) {
-    return format(date, 'M月d日', { locale: zhCN })
+    return format(date, language === 'zh' ? 'M月d日' : 'MMM d', { locale })
   }
-  return format(date, 'yyyy/M/d', { locale: zhCN })
+  return format(date, 'yyyy/M/d', { locale })
 }
 
 export function ConversationList({
@@ -45,6 +49,7 @@ export function ConversationList({
   onNew,
   onDelete,
 }: ConversationListProps) {
+  const { t, language } = useI18n()
   const [keyword, setKeyword] = useState('')
 
   const filtered = keyword.trim()
@@ -55,13 +60,13 @@ export function ConversationList({
     <div className="flex h-full w-64 shrink-0 flex-col border-r border-border/30 bg-sidebar/40 backdrop-blur-xl">
       {/* 头部 */}
       <div className="flex items-center justify-between px-3 pb-1 pt-3">
-        <span className="text-xs font-medium text-muted-foreground">对话历史</span>
+        <span className="text-xs font-medium text-muted-foreground">{t('chat.history')}</span>
         <button
           onClick={onNew}
           className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary transition-colors hover:bg-primary/20"
         >
           <Plus className="h-3.5 w-3.5" />
-          新建
+          {t('chat.newChat')}
         </button>
       </div>
 
@@ -72,7 +77,7 @@ export function ConversationList({
           <input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="搜索对话..."
+            placeholder={t('chat.searchPlaceholder')}
             className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
           />
         </div>
@@ -83,13 +88,13 @@ export function ConversationList({
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            加载中...
+            {t('common.loading')}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <MessageSquare className="h-8 w-8 text-muted-foreground/30" />
             <p className="text-xs text-muted-foreground/60">
-              {keyword.trim() ? '没有匹配的对话' : '暂无对话记录'}
+              {keyword.trim() ? t('chat.noMatch') : t('chat.noConversations')}
             </p>
           </div>
         ) : (
@@ -109,9 +114,11 @@ export function ConversationList({
                 >
                   <MessageSquare className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground/50')} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate">{conv.title || '未命名对话'}</div>
+                    <div className="truncate">{conv.title || t('chat.untitledConversation')}</div>
                     {conv.updatedAt && (
-                      <div className="text-[10px] text-muted-foreground/50">{formatTime(conv.updatedAt)}</div>
+                      <div className="text-[10px] text-muted-foreground/50">
+                        {formatTime(conv.updatedAt, language, t('chat.yesterday'))}
+                      </div>
                     )}
                   </div>
                   <button
@@ -120,7 +127,7 @@ export function ConversationList({
                       onDelete(conv.id)
                     }}
                     className="shrink-0 rounded-md p-1 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                    title="删除对话"
+                    title={t('chat.deleteConversation')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -133,3 +140,4 @@ export function ConversationList({
     </div>
   )
 }
+

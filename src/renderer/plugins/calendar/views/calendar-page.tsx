@@ -8,18 +8,35 @@ import {
 } from 'lucide-react'
 import { cn } from '@lib/utils'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, getDay } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { enUS, zhCN } from 'date-fns/locale'
+import { useI18n } from '@core/i18n'
+import type { TranslationKey } from '@core/i18n/types'
 
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+/** 周一开头的星期标签，两种语言各一份 */
+const WEEKDAYS: Record<'zh' | 'en', string[]> = {
+  zh: ['一', '二', '三', '四', '五', '六', '日'],
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+}
 
-const TYPE_LABELS: Record<string, { label: string; icon: typeof Calendar }> = {
-  event: { label: '事件', icon: Flag },
-  task: { label: '任务', icon: Clock },
-  birthday: { label: '生日', icon: Gift },
-  reminder: { label: '提醒', icon: Bell },
+/** 事件类型 -> 文案键（图标与语言无关，单独放） */
+const TYPE_ICONS = {
+  event: Flag,
+  task: Clock,
+  birthday: Gift,
+  reminder: Bell,
+} as const
+
+const TYPE_KEYS: Record<string, TranslationKey> = {
+  event: 'calendar.types.event',
+  task: 'calendar.types.task',
+  birthday: 'calendar.types.birthday',
+  reminder: 'calendar.types.reminder',
 }
 
 export default function CalendarPage() {
+  const { t, language } = useI18n()
+  const dateLocale = language === 'zh' ? zhCN : enUS
+  const weekdays = WEEKDAYS[language]
   const {
     events, currentDate, view, loaded,
     setView, goPrev, goNext, goToToday,
@@ -81,25 +98,31 @@ export default function CalendarPage() {
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-foreground">📅 日历</h1>
+          <h1 className="text-2xl font-bold text-foreground">📅 {t('calendar.title')}</h1>
           <div className="flex rounded-lg bg-muted/50 p-0.5">
             {(['month', 'week', 'day'] as const).map((v) => (
               <button key={v} onClick={() => setView(v)}
                 className={cn('rounded-md px-3 py-1 text-xs font-medium transition-colors',
                   view === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
-                {{ month: '月', week: '周', day: '日' }[v]}
+                {t(v === 'month' ? 'calendar.month' : v === 'week' ? 'calendar.week' : 'calendar.day')}
               </button>
             ))}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={goToToday}>今天</Button>
+          <Button variant="outline" size="sm" onClick={goToToday}>{t('calendar.today')}</Button>
           <Button variant="ghost" size="icon" onClick={goPrev}><ChevronLeft className="h-4 w-4" /></Button>
-          <span className="text-sm font-medium w-32 text-center">
-            {format(new Date(currentDate), view === 'month' ? 'yyyy年 M月' : 'yyyy年 M月 d日', { locale: zhCN })}
+          <span className="text-sm font-medium w-40 text-center">
+            {format(
+              new Date(currentDate),
+              view === 'month'
+                ? (language === 'zh' ? 'yyyy年 M月' : 'MMMM yyyy')
+                : (language === 'zh' ? 'yyyy年 M月 d日' : 'MMMM d, yyyy'),
+              { locale: dateLocale },
+            )}
           </span>
           <Button variant="ghost" size="icon" onClick={goNext}><ChevronRight className="h-4 w-4" /></Button>
-          <Button size="sm" className="gap-1" onClick={() => openDialog()}><Plus className="h-3.5 w-3.5" />新建</Button>
+          <Button size="sm" className="gap-1" onClick={() => openDialog()}><Plus className="h-3.5 w-3.5" />{t('calendar.newEvent')}</Button>
         </div>
       </div>
 
@@ -109,7 +132,7 @@ export default function CalendarPage() {
           <GlassCard padding="none">
             {/* 星期头 */}
             <div className="grid grid-cols-7 border-b border-border/30 text-center text-xs font-medium text-muted-foreground">
-              {WEEKDAYS.map((d) => (
+              {weekdays.map((d) => (
                 <div key={d} className="py-2">{d}</div>
               ))}
             </div>
@@ -166,7 +189,7 @@ export default function CalendarPage() {
                       <span className={cn('inline-flex h-7 w-7 items-center justify-center rounded-full text-sm', today && 'bg-primary text-primary-foreground font-bold')}>
                         {format(day, 'd')}
                       </span>
-                      <span className="ml-1 text-xs text-muted-foreground">{WEEKDAYS[getDay(day) === 0 ? 6 : getDay(day) - 1]}</span>
+                      <span className="ml-1 text-xs text-muted-foreground">{weekdays[getDay(day) === 0 ? 6 : getDay(day) - 1]}</span>
                       {dayEvents.map((ev) => (
                         <div key={ev.id} className="mt-1 rounded px-1.5 py-1 text-xs font-medium text-white" style={{ backgroundColor: ev.color }}>
                           <div className="flex items-center gap-1">
@@ -187,9 +210,9 @@ export default function CalendarPage() {
         {/* 右侧边栏 — 即将到来的事件 */}
         <div className="w-64 shrink-0 space-y-3">
           <GlassCard>
-            <h3 className="font-semibold text-sm text-foreground mb-3">📋 未来 7 天</h3>
+            <h3 className="font-semibold text-sm text-foreground mb-3">📋 {t('calendar.upcoming')}</h3>
             {upcoming.length === 0 ? (
-              <p className="text-xs text-muted-foreground">暂无事件</p>
+              <p className="text-xs text-muted-foreground">{t('calendar.empty')}</p>
             ) : (
               <div className="space-y-2">
                 {upcoming.map((ev) => (
@@ -198,7 +221,11 @@ export default function CalendarPage() {
                     <div className="min-w-0">
                       <p className="font-medium truncate">{ev.title}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(ev.date), 'M月d日', { locale: zhCN })}
+                        {format(
+                          new Date(ev.date),
+                          language === 'zh' ? 'M月d日' : 'MMM d',
+                          { locale: dateLocale },
+                        )}
                         {ev.startTime && ` ${ev.startTime}`}
                       </p>
                     </div>
@@ -213,12 +240,12 @@ export default function CalendarPage() {
 
           {/* 图例 */}
           <GlassCard>
-            <h3 className="font-semibold text-sm text-foreground mb-2">图例</h3>
+            <h3 className="font-semibold text-sm text-foreground mb-2">{t('calendar.legend')}</h3>
             <div className="space-y-1.5">
-              {Object.entries(TYPE_LABELS).map(([type, { label, icon: Icon }]) => (
+              {Object.entries(TYPE_ICONS).map(([type, Icon]) => (
                 <div key={type} className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Icon className="h-3.5 w-3.5" />
-                  {label}
+                  {t(TYPE_KEYS[type])}
                 </div>
               ))}
             </div>
@@ -233,36 +260,36 @@ export default function CalendarPage() {
           <div className="fixed left-1/2 top-1/3 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2">
             <GlassCard>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground">新建事件</h3>
+                <h3 className="font-semibold text-foreground">{t('calendar.newEventTitle')}</h3>
                 <button onClick={() => setShowDialog(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
               </div>
               <div className="space-y-3">
                 <Input value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                  placeholder="事件标题" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
+                  placeholder={t('calendar.titlePlaceholder')} autoFocus onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
                 <Input value={dialogDate} onChange={(e) => setDialogDate(e.target.value)} type="date" />
                 <div className="flex gap-2">
-                  {Object.entries(TYPE_LABELS).map(([type, { label, icon: Icon }]) => (
+                  {Object.entries(TYPE_ICONS).map(([type, Icon]) => (
                     <button key={type} onClick={() => setNewEvent({ ...newEvent, type: type as CalendarEvent['type'] })}
                       className={cn('flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors',
                         newEvent.type === type ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border/50 text-muted-foreground')}>
-                      <Icon className="h-3 w-3" />{label}
+                      <Icon className="h-3 w-3" />{t(TYPE_KEYS[type])}
                     </button>
                   ))}
                 </div>
                 <div className="flex gap-2">
                   <Input value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value, isAllDay: false })}
-                    type="time" className="w-32" placeholder="开始" />
+                    type="time" className="w-32" />
                   <Input value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
-                    type="time" className="w-32" placeholder="结束" />
+                    type="time" className="w-32" />
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <Input value={newEvent.location} onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                    placeholder="地点（可选）" className="flex-1" />
+                    placeholder={t('calendar.location')} className="flex-1" />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowDialog(false)}>取消</Button>
-                  <Button size="sm" onClick={handleAdd}>添加</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowDialog(false)}>{t('common.cancel')}</Button>
+                  <Button size="sm" onClick={handleAdd}>{t('common.add')}</Button>
                 </div>
               </div>
             </GlassCard>

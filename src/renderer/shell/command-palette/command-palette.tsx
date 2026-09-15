@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@lib/utils'
+import { useI18n } from '@core/i18n'
 
 interface Command {
   id: string
@@ -30,19 +31,20 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
+  const { t } = useI18n()
 
   const commands: Command[] = [
-    { id: 'home', label: '前往首页', icon: LayoutDashboard, category: 'navigation', shortcut: '^ H', action: () => navigate('/') },
-    { id: 'chat', label: 'AI 聊天', icon: MessageSquare, category: 'navigation', shortcut: '^ L', action: () => navigate('/chat') },
-    { id: 'calendar', label: '日历', icon: Calendar, category: 'navigation', shortcut: '^ C', action: () => navigate('/calendar') },
-    { id: 'todo', label: '今日计划', icon: CheckSquare, category: 'navigation', shortcut: '^ T', action: () => navigate('/todo') },
-    { id: 'fitness', label: '健身计划', icon: Dumbbell, category: 'navigation', action: () => navigate('/fitness') },
-    { id: 'diet', label: '饮食计划', icon: Salad, category: 'navigation', action: () => navigate('/diet') },
-    { id: 'memo', label: '备忘录', icon: StickyNote, category: 'navigation', shortcut: '^ M', action: () => navigate('/memo') },
-    { id: 'weather', label: '天气', icon: CloudSun, category: 'navigation', action: () => navigate('/weather') },
-    { id: 'statistics', label: '数据统计', icon: BarChart3, category: 'navigation', action: () => navigate('/statistics') },
-    { id: 'settings', label: '打开设置', icon: Settings, category: 'settings', action: () => navigate('/settings') },
-    { id: 'new-chat', label: '新建对话', icon: Plus, category: 'action', shortcut: '^ N', action: () => navigate('/chat') },
+    { id: 'home', label: t('palette.goHome'), icon: LayoutDashboard, category: 'navigation', shortcut: '^ H', action: () => navigate('/') },
+    { id: 'chat', label: t('nav.chat'), icon: MessageSquare, category: 'navigation', shortcut: '^ L', action: () => navigate('/chat') },
+    { id: 'calendar', label: t('nav.calendar'), icon: Calendar, category: 'navigation', shortcut: '^ C', action: () => navigate('/calendar') },
+    { id: 'todo', label: t('nav.todo'), icon: CheckSquare, category: 'navigation', shortcut: '^ T', action: () => navigate('/todo') },
+    { id: 'fitness', label: t('nav.fitness'), icon: Dumbbell, category: 'navigation', action: () => navigate('/fitness') },
+    { id: 'diet', label: t('nav.diet'), icon: Salad, category: 'navigation', action: () => navigate('/diet') },
+    { id: 'memo', label: t('nav.memo'), icon: StickyNote, category: 'navigation', shortcut: '^ M', action: () => navigate('/memo') },
+    { id: 'weather', label: t('nav.weather'), icon: CloudSun, category: 'navigation', action: () => navigate('/weather') },
+    { id: 'statistics', label: t('nav.statistics'), icon: BarChart3, category: 'navigation', action: () => navigate('/statistics') },
+    { id: 'settings', label: t('palette.openSettings'), icon: Settings, category: 'settings', action: () => navigate('/settings') },
+    { id: 'new-chat', label: t('nav.newConversation'), icon: Plus, category: 'action', shortcut: '^ N', action: () => navigate('/chat') },
   ]
 
   // Ctrl+K 快捷键
@@ -92,7 +94,7 @@ export function CommandPalette() {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索命令..."
+            placeholder={t('palette.searchPlaceholder')}
             className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
           <kbd className="rounded-md border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -105,7 +107,7 @@ export function CommandPalette() {
           {Object.entries(grouped).map(([category, cmds]) => (
             <div key={category}>
               <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {category === 'navigation' ? '导航' : category === 'action' ? '操作' : '设置'}
+                {t(category === 'navigation' ? 'palette.categories.navigation' : category === 'action' ? 'palette.categories.action' : 'palette.categories.settings')}
               </div>
               {cmds.map((cmd) => (
                 <button

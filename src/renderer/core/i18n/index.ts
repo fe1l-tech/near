@@ -41,6 +41,12 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
+/**
+ * 订阅语言变化（返回取消订阅函数）。
+ * 供 React 之外的地方使用；组件内用 `useI18n()` 更省事。
+ */
+export const subscribeLanguage = subscribe
+
 /** 按路径取字典中的值 */
 function lookup(language: Language, key: string): string | undefined {
   const segments = key.split('.')

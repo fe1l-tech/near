@@ -5,6 +5,7 @@ import { useClaudeChat } from '@ai/hooks/use-claude-chat'
 import { useUserStore } from '@core/stores'
 import { ipc } from '@core/ipc/ipc-client'
 import { capabilities } from '@core/platform'
+import { useI18n } from '@core/i18n'
 import { Button } from '@components/ui/button'
 import { Send, Square, Key, Trash2, Bot, User, Brain, Copy, Check, Terminal, Loader2 } from 'lucide-react'
 import { cn } from '@lib/utils'
@@ -12,12 +13,15 @@ import { ConversationList, type ConversationItem } from '../components/conversat
 
 const CONV_ID_KEY = 'ai-workspace-current-conversation'
 
-function newConversationTitle(): string {
+/** 新对话的默认标题：拼接标签与时间，便于在列表里区分 */
+function newConversationTitle(label: string): string {
   const now = new Date()
-  return `对话 ${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  return `${label} ${now.getMonth() + 1}/${now.getDate()} ${time}`
 }
 
 export default function ChatPage() {
+  const { t, language } = useI18n()
   const { sessionId } = useParams<{ sessionId: string }>()
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
@@ -118,7 +122,9 @@ export default function ChatPage() {
 
   // 创建新对话（返回 convId）
   const createConversation = useCallback(async (): Promise<string | null> => {
-    const result: any = await ipc.conversation.create({ title: newConversationTitle() })
+    const result: any = await ipc.conversation.create({
+      title: newConversationTitle(t('chat.conversationTitle')),
+    })
     const convId = result?.data?.id || result?.id
     if (convId) {
       conversationIdRef.current = convId
@@ -300,7 +306,7 @@ export default function ChatPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">正在检测 Claude Code...</p>
+        <p className="text-sm text-muted-foreground">{t('chat.detecting')}</p>
       </div>
     )
   }
@@ -327,17 +333,15 @@ export default function ChatPage() {
         <div className="flex items-center gap-3 border-b border-border/30 bg-primary/5 px-4 py-2.5">
           <Key className="h-4 w-4 shrink-0 text-primary" />
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            {capabilities.claudeCli
-              ? '尚未配置模型：请在设置里填入 API Key，或安装 Claude Code CLI 后即可对话。'
-              : '尚未配置模型：填入 API Key（兼容 OpenAI 协议的任意服务）即可开始对话。密钥只保存在你自己的浏览器里。'}
-            <span className="ml-1 text-foreground/70">下面是一段示例对话，可以直接查看。</span>
+            {capabilities.claudeCli ? t('chat.noKeyNoticeClaude') : t('chat.noKeyNotice')}
+            <span className="ml-1 text-foreground/70">{t('chat.sampleHint')}</span>
           </p>
           <Button
             variant="outline"
             className="h-7 shrink-0 gap-1.5 px-2.5 text-xs"
             onClick={() => { window.location.hash = '#/settings' }}
           >
-            ⚙ 去配置
+            ⚙ {t('chat.goConfigure')}
           </Button>
           {capabilities.claudeCli && (
             <Button
@@ -345,7 +349,7 @@ export default function ChatPage() {
               className="h-7 shrink-0 gap-1.5 px-2.5 text-xs"
               onClick={() => claude.claudeAvailable !== null && setUseClaude(false)}
             >
-              <Terminal className="h-3 w-3" /> 安装 Claude Code
+              <Terminal className="h-3 w-3" /> {t('chat.installClaude')}
             </Button>
           )}
         </div>
@@ -359,9 +363,13 @@ export default function ChatPage() {
             ) : (
               <Bot className="h-12 w-12 opacity-30" />
             )}
-            <p className="text-sm">{useClaude ? '与 Claude Code 开始对话' : '开始一段新对话吧'}</p>
+            <p className="text-sm">{useClaude ? t('chat.emptyHintClaude') : t('chat.emptyHint')}</p>
             <div className="flex gap-2 mt-2">
-              {['写一段 React 代码', '解释 TypeScript 泛型', '帮我写一首诗'].map((hint) => (
+              {[
+                t('chat.hints.react'),
+                t('chat.hints.generics'),
+                t('chat.hints.poem'),
+              ].map((hint) => (
                 <button
                   key={hint}
                   onClick={() => { setInput(hint); inputRef.current?.focus() }}
@@ -397,8 +405,7 @@ export default function ChatPage() {
                         <details className="group" open>
                           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
                             <Brain className="mr-1 inline h-3 w-3" />
-                            思考过程
-                          </summary>
+                            {t('chat.thinking')}                          </summary>
                           <div className="mt-2 rounded-xl border border-border/30 bg-muted/50 p-3 text-xs text-muted-foreground leading-relaxed">
                             {msg.thinking}
                           </div>
@@ -429,7 +436,7 @@ export default function ChatPage() {
             {thinking && isStreaming && (
               <div className="mx-auto max-w-3xl">
                 <details open className="group">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">💭 正在思考...</summary>
+                  <summary className="cursor-pointer text-xs text-muted-foreground">💭 {t('chat.thinkingLive')}</summary>
                   <div className="mt-2 rounded-xl border border-primary/10 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed animate-pulse">
                     {thinking}
                   </div>
@@ -445,7 +452,7 @@ export default function ChatPage() {
         <div className="mx-auto max-w-3xl w-full px-6 pb-2">
           <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2 text-xs text-red-400">
             {error}
-            <button className="ml-2 underline" onClick={() => setError('')}>关闭</button>
+            <button className="ml-2 underline" onClick={() => setError('')}>{t('common.close')}</button>
           </div>
         </div>
       )}
@@ -459,7 +466,7 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={needsApiKey ? '请先配置 API Key 后开始对话…' : '输入消息... (Enter 发送, Shift+Enter 换行)'}
+              placeholder={needsApiKey ? t('chat.inputDisabled') : t('chat.inputPlaceholder')}
               rows={1}
               disabled={isStreaming || needsApiKey}
               className="flex-1 resize-none rounded-xl border border-border/40 bg-input/50 px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-60"
@@ -474,7 +481,7 @@ export default function ChatPage() {
                 size="icon"
                 onClick={needsApiKey ? () => { window.location.hash = '#/settings' } : handleSend}
                 disabled={!needsApiKey && !input.trim()}
-                title={needsApiKey ? '去配置 API Key' : '发送'}
+                title={needsApiKey ? t('chat.configureApiKey') : t('chat.send')}
                 className="h-10 w-10 shrink-0"
               >
                 {needsApiKey ? <Key className="h-4 w-4" /> : <Send className="h-4 w-4" />}
@@ -487,7 +494,7 @@ export default function ChatPage() {
               className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <Trash2 className="h-3 w-3" />
-              清空对话
+              {t('chat.clearConversation')}
             </button>
           )}
         </div>

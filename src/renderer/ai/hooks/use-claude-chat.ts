@@ -5,6 +5,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ipc } from '@core/ipc/ipc-client'
 import { capabilities } from '@core/platform'
+import { t } from '@core/i18n'
 import type { ChatMessage } from '../types/message.types'
 
 interface UseClaudeChatOptions {
@@ -123,7 +124,7 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
       case 'error': {
         setIsStreaming(false)
         streamIdRef.current = null
-        options.onError?.(event.error || 'Claude 请求失败')
+        options.onError?.(event.error || t('errors.claudeRequestFailed'))
         break
       }
     }
@@ -160,11 +161,11 @@ export function useClaudeChat(options: UseClaudeChatOptions = {}) {
         streamIdRef.current = (result as any).data.streamId
       } else {
         setIsStreaming(false)
-        options.onError?.((result as any).error || '启动 Claude 失败')
+        options.onError?.((result as any).error || t('errors.claudeStartFailed'))
       }
     } catch (err) {
       setIsStreaming(false)
-      options.onError?.((err as Error).message || '启动 Claude 失败')
+      options.onError?.((err as Error).message || t('errors.claudeStartFailed'))
     }
   }, [isStreaming, claudeAvailable, options.onError])
 

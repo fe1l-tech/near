@@ -19,9 +19,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@lib/utils'
 import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { enUS, zhCN } from 'date-fns/locale'
+import { useI18n } from '@core/i18n'
 
 export default function MemoPage() {
+  const { t, language } = useI18n()
+  const dateLocale = language === 'zh' ? zhCN : enUS
   const {
     memos,
     selectedId,
@@ -68,7 +71,7 @@ export default function MemoPage() {
 
   // 新建
   const handleCreate = () => {
-    create('新笔记')
+    create(t('memo.placeholderTitle'))
   }
 
   // 保存草稿到 store
@@ -100,7 +103,7 @@ export default function MemoPage() {
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="搜索笔记..."
+                placeholder={t('memo.searchPlaceholder')}
                 className="pl-9"
               />
             </div>
@@ -135,7 +138,7 @@ export default function MemoPage() {
               {filtered.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">
                   <StickyNote className="mx-auto mb-2 h-8 w-8 opacity-30" />
-                  {searchQuery ? '没有匹配的笔记' : '还没有笔记，点击 + 创建'}
+                  {searchQuery ? t('memo.noMatch') : t('memo.emptyCreate')}
                 </div>
               ) : (
                 filtered.map((memo) => (
@@ -151,11 +154,11 @@ export default function MemoPage() {
                           <span className="text-sm font-medium truncate">{memo.title}</span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          {memo.excerpt || memo.content || '空内容'}
+                          {memo.excerpt || memo.content || t('memo.emptyContent')}
                         </p>
                         <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground/70">
                           <Clock className="h-3 w-3" />
-                          {format(new Date(memo.updatedAt), 'MM/dd HH:mm', { locale: zhCN })}
+                          {format(new Date(memo.updatedAt), 'MM/dd HH:mm', { locale: dateLocale })}
                           {memo.tags.length > 0 && (
                             <span className="flex items-center gap-0.5">
                               <Tag className="h-3 w-3" />
@@ -177,10 +180,10 @@ export default function MemoPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <div className="mb-4 text-6xl">📒</div>
-            <p className="text-muted-foreground">选择一篇笔记或创建新的</p>
+            <p className="text-muted-foreground">{t('memo.selectHint')}</p>
             <Button variant="outline" className="mt-4 gap-2" onClick={handleCreate}>
               <Plus className="h-4 w-4" />
-              新建笔记
+              {t('memo.newMemo')}
             </Button>
           </div>
         </div>
@@ -195,7 +198,7 @@ export default function MemoPage() {
       <div className="w-72 shrink-0 space-y-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => select(null)} className="gap-1 text-muted-foreground">
-            ← 返回
+            {t('memo.back')}
           </Button>
           <Button size="icon" variant="outline" className="ml-auto" onClick={handleCreate}>
             <Plus className="h-4 w-4" />
@@ -230,7 +233,7 @@ export default function MemoPage() {
             value={draftTitle}
             onChange={(e) => { setDraftTitle(e.target.value); markDirty() }}
             className="flex-1 bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground/50"
-            placeholder="笔记标题"
+            placeholder={t('memo.titlePlaceholder')}
           />
 
           <div className="flex items-center gap-1">
@@ -242,7 +245,7 @@ export default function MemoPage() {
               className="gap-1"
             >
               <Save className="h-3.5 w-3.5" />
-              保存
+              {t('common.save')}
             </Button>
 
             <button
@@ -251,7 +254,7 @@ export default function MemoPage() {
                 'rounded-lg p-1.5 transition-colors',
                 selected.isFavorite ? 'text-amber-400' : 'text-muted-foreground hover:text-foreground',
               )}
-              title="收藏"
+              title={t('memo.favorites')}
             >
               <Star className={cn('h-4 w-4', selected.isFavorite && 'fill-current')} />
             </button>
@@ -261,16 +264,16 @@ export default function MemoPage() {
                 'rounded-lg p-1.5 transition-colors',
                 selected.isPinned ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
-              title="置顶"
+              title={t('memo.pinned')}
             >
               <Pin className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
-                if (confirm('确定删除这篇笔记吗？')) deleteMemo(selected.id)
+                if (confirm(t('memo.deleteConfirm'))) deleteMemo(selected.id)
               }}
               className="rounded-lg p-1.5 text-muted-foreground hover:text-red-400 transition-colors"
-              title="删除"
+              title={t('common.delete')}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -296,7 +299,7 @@ export default function MemoPage() {
               </span>
             ))}
             <input
-              placeholder="添加标签..."
+              placeholder={t('memo.addTag')}
               className="w-20 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.currentTarget.value.trim()) {
@@ -315,7 +318,8 @@ export default function MemoPage() {
             'ml-auto text-[10px]',
             dirty ? 'text-amber-400 font-medium' : 'text-muted-foreground/60',
           )}>
-            {draftContent.length} 字 · v{selected.version}{dirty && ' · 未保存'}
+            {t('memo.charCount', { count: draftContent.length, version: selected.version })}
+            {dirty && ` · ${t('memo.unsaved')}`}
           </span>
         </div>
 
@@ -329,7 +333,7 @@ export default function MemoPage() {
               handleSave()
             }
           }}
-          placeholder="开始写点什么... 支持 Markdown 语法  (Ctrl+S 保存)"
+          placeholder={t('memo.editorPlaceholder')}
           className="flex-1 resize-none bg-transparent px-6 py-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/40"
         />
       </GlassCard>

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { DeepSeekAdapter } from '../adapters/deepseek.adapter'
 import { useUserStore } from '@core/stores'
+import { t } from '@core/i18n'
 import type { ChatMessage, StreamChunk } from '../types/message.types'
 
 interface UseAiChatOptions {
@@ -51,7 +52,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   const sendMessage = useCallback(
     async (content: string) => {
       if (!apiKey) {
-        options.onError?.('请先在设置中配置 DeepSeek API Key')
+        options.onError?.(t('errors.noApiKey'))
         return
       }
 
@@ -109,7 +110,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
                 break
               case 'error':
                 setIsStreaming(false)
-                options.onError?.(chunk.error || '未知错误')
+                options.onError?.(chunk.error || t('errors.unknown'))
                 break
             }
           },
@@ -117,7 +118,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         )
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          const msg = err instanceof Error ? err.message : '请求失败'
+          const msg = err instanceof Error ? err.message : t('errors.requestFailed')
           options.onError?.(msg)
         }
         setIsStreaming(false)

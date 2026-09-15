@@ -1,3 +1,5 @@
+import { t } from '@core/i18n'
+
 export interface Memo {
   id: string
   title: string
@@ -26,7 +28,8 @@ export function createMemo(partial?: Partial<Memo>): Memo {
   const now = new Date().toISOString()
   return {
     id: crypto.randomUUID(),
-    title: partial?.title || '未命名笔记',
+    // 默认标题按当前界面语言生成 —— 它是用户会直接看到的文本
+    title: partial?.title || t('memo.placeholderTitle'),
     content: partial?.content || '',
     excerpt: '',
     tags: partial?.tags || [],

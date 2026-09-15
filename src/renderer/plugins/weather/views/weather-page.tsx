@@ -3,6 +3,8 @@ import { GlassCard } from '@components/glass/glass-card'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { ipc } from '@core/ipc/ipc-client'
+import { useI18n } from '@core/i18n'
+import type { TranslationKey } from '@core/i18n/types'
 import { CloudSun, Droplets, Wind, Sun, Thermometer, MapPin, Search, Navigation } from 'lucide-react'
 
 interface WeatherData {
@@ -10,7 +12,15 @@ interface WeatherData {
   lat: number
   lon: number
   temp: number
-  condition: string
+  /**
+   * 天气描述的翻译键。
+   *
+   * 注意：这份数据会**缓存进数据库**（30 分钟）。所以这里存的是键而不是
+   * 译好的文字 —— 否则切换语言后，旧缓存会让界面停留在上一种语言。
+   */
+  conditionKey?: TranslationKey
+  /** 旧缓存里可能是已翻译好的文本，仅作回退显示 */
+  condition?: string
   icon: string
   humidity: number
   windSpeed: number
@@ -23,39 +33,44 @@ interface WeatherData {
 }
 
 interface ForecastDay {
-  day: string
+  /** 星期几（0=周日）。与 day 一样属于渲染期计算，故缓存里存索引而非文字 */
+  weekday?: number
+  /** 是否为今天/明天，由索引推导，避免把「今天」这种相对词缓存下来 */
+  dayOffset?: number
+  /** 旧缓存字段，作回退 */
+  day?: string
   icon: string
   high: number
   low: number
   rain: number
 }
 
-// WMO 天气代码映射
-const WMO_CODES: Record<number, { condition: string; icon: string }> = {
-  0: { condition: '晴', icon: '☀️' },
-  1: { condition: '大部晴朗', icon: '🌤' },
-  2: { condition: '多云', icon: '⛅' },
-  3: { condition: '阴', icon: '☁️' },
-  45: { condition: '雾', icon: '🌫' },
-  48: { condition: '霜雾', icon: '🌫' },
-  51: { condition: '小毛毛雨', icon: '🌦' },
-  53: { condition: '毛毛雨', icon: '🌦' },
-  55: { condition: '大毛毛雨', icon: '🌧' },
-  61: { condition: '小雨', icon: '🌧' },
-  63: { condition: '中雨', icon: '🌧' },
-  65: { condition: '大雨', icon: '🌧' },
-  71: { condition: '小雪', icon: '🌨' },
-  73: { condition: '中雪', icon: '🌨' },
-  75: { condition: '大雪', icon: '❄️' },
-  77: { condition: '雪粒', icon: '🌨' },
-  80: { condition: '阵雨', icon: '⛈' },
-  81: { condition: '大阵雨', icon: '⛈' },
-  82: { condition: '强阵雨', icon: '⛈' },
-  85: { condition: '小阵雪', icon: '🌨' },
-  86: { condition: '大阵雪', icon: '🌨' },
-  95: { condition: '雷暴', icon: '⛈' },
-  96: { condition: '冰雹雷暴', icon: '⛈' },
-  99: { condition: '强冰雹雷暴', icon: '⛈' },
+// WMO 天气代码映射：图标与语言无关，描述文案走 i18n
+const WMO_CODES: Record<number, { key: TranslationKey; icon: string }> = {
+  0: { key: 'weather.weatherCodes.clear', icon: '☀️' },
+  1: { key: 'weather.weatherCodes.mainlyClear', icon: '🌤' },
+  2: { key: 'weather.weatherCodes.partlyCloudy', icon: '⛅' },
+  3: { key: 'weather.weatherCodes.overcast', icon: '☁️' },
+  45: { key: 'weather.weatherCodes.fog', icon: '🌫' },
+  48: { key: 'weather.weatherCodes.rimeFog', icon: '🌫' },
+  51: { key: 'weather.weatherCodes.lightDrizzle', icon: '🌦' },
+  53: { key: 'weather.weatherCodes.drizzle', icon: '🌦' },
+  55: { key: 'weather.weatherCodes.denseDrizzle', icon: '🌧' },
+  61: { key: 'weather.weatherCodes.lightRain', icon: '🌧' },
+  63: { key: 'weather.weatherCodes.rain', icon: '🌧' },
+  65: { key: 'weather.weatherCodes.heavyRain', icon: '🌧' },
+  71: { key: 'weather.weatherCodes.lightSnow', icon: '🌨' },
+  73: { key: 'weather.weatherCodes.snow', icon: '🌨' },
+  75: { key: 'weather.weatherCodes.heavySnow', icon: '❄️' },
+  77: { key: 'weather.weatherCodes.snowGrains', icon: '🌨' },
+  80: { key: 'weather.weatherCodes.showers', icon: '⛈' },
+  81: { key: 'weather.weatherCodes.heavyShowers', icon: '⛈' },
+  82: { key: 'weather.weatherCodes.violentShowers', icon: '⛈' },
+  85: { key: 'weather.weatherCodes.lightSnowShowers', icon: '🌨' },
+  86: { key: 'weather.weatherCodes.heavySnowShowers', icon: '🌨' },
+  95: { key: 'weather.weatherCodes.thunderstorm', icon: '⛈' },
+  96: { key: 'weather.weatherCodes.thunderstormHail', icon: '⛈' },
+  99: { key: 'weather.weatherCodes.heavyThunderstormHail', icon: '⛈' },
 }
 
 // 默认城市列表
@@ -72,9 +87,9 @@ const POPULAR_CITIES = [
 ]
 
 const DEFAULT_CITY = POPULAR_CITIES[0]
-const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 export default function WeatherPage() {
+  const { t } = useI18n()
   const [data, setData] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -103,20 +118,20 @@ export default function WeatherPage() {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=auto&forecast_days=7`
       const res = await fetch(url)
 
-      if (!res.ok) throw new Error('天气服务暂不可用')
+      if (!res.ok) throw new Error(t('weather.unavailable'))
 
       const json = await res.json()
       const current = json.current
       const daily = json.daily
 
-      const wmo = WMO_CODES[current.weather_code] || { condition: '未知', icon: '🌤' }
+      const wmo = WMO_CODES[current.weather_code] ?? { key: 'weather.weatherCodes.unknown' as TranslationKey, icon: '🌤' }
 
       const weatherData: WeatherData = {
         city,
         lat,
         lon,
         temp: Math.round(current.temperature_2m),
-        condition: wmo.condition,
+        conditionKey: wmo.key,
         icon: wmo.icon,
         humidity: current.relative_humidity_2m,
         windSpeed: Math.round(current.wind_speed_10m),
@@ -128,20 +143,20 @@ export default function WeatherPage() {
         forecast: daily.time.map((dateStr: string, i: number) => {
           const date = new Date(dateStr)
           const today = new Date()
-          const isToday = date.toDateString() === today.toDateString()
           const tomorrow = new Date(today)
           tomorrow.setDate(tomorrow.getDate() + 1)
-          const isTomorrow = date.toDateString() === tomorrow.toDateString()
 
-          let dayLabel: string
-          if (isToday) dayLabel = '今天'
-          else if (isTomorrow) dayLabel = '明天'
-          else dayLabel = WEEKDAY_NAMES[date.getDay()]
+          // 只存事实（星期几、相对今天的偏移），文字留到渲染时按语言生成
+          const dayOffset =
+            date.toDateString() === today.toDateString() ? 0
+            : date.toDateString() === tomorrow.toDateString() ? 1
+            : undefined
 
-          const fWmo = WMO_CODES[daily.weather_code[i]] || { icon: '🌤' }
+          const fWmo = WMO_CODES[daily.weather_code[i]]
           return {
-            day: dayLabel,
-            icon: fWmo.icon,
+            weekday: date.getDay(),
+            dayOffset,
+            icon: fWmo?.icon ?? '🌤',
             high: Math.round(daily.temperature_2m_max[i]),
             low: Math.round(daily.temperature_2m_min[i]),
             rain: daily.precipitation_probability_max[i] || 0,
@@ -156,11 +171,11 @@ export default function WeatherPage() {
         await ipc.weather.setCache(city, weatherData, lat, lon)
       } catch { /* 缓存失败不影响主流程 */ }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '获取天气失败')
+      setError(err instanceof Error ? err.message : t('weather.fetchFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   // 初次进入加载默认城市天气
   useEffect(() => {
@@ -176,7 +191,7 @@ export default function WeatherPage() {
       fetchWeather(city.name, city.lat, city.lon)
       setSearchInput('')
     } else if (searchInput.trim()) {
-      setError('未找到该城市，请尝试热门城市')
+      setError(t('weather.notFound'))
     }
   }
 
@@ -187,11 +202,27 @@ export default function WeatherPage() {
 
   // 空气质量描述
   const getAQIDesc = (aqi: number) => {
-    if (aqi <= 50) return '优'
-    if (aqi <= 100) return '良'
-    if (aqi <= 150) return '轻度污染'
-    if (aqi <= 200) return '中度污染'
-    return '重度污染'
+    if (aqi <= 50) return t('weather.aqi.excellent')
+    if (aqi <= 100) return t('weather.aqi.good')
+    if (aqi <= 150) return t('weather.aqi.light')
+    if (aqi <= 200) return t('weather.aqi.moderate')
+    return t('weather.aqi.heavy')
+  }
+
+  /** 当前天气描述：优先用缓存里的翻译键，旧缓存则回退到已存文本 */
+  const conditionText = data?.conditionKey
+    ? t(data.conditionKey)
+    : (data?.condition ?? '')
+
+  /** 预报标签：今天/明天/星期几，全部在渲染时按当前语言生成 */
+  const forecastDayLabel = (day: ForecastDay): string => {
+    if (day.dayOffset === 0) return t('weather.today')
+    if (day.dayOffset === 1) return t('weather.tomorrow')
+    if (typeof day.weekday === 'number') {
+      const keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+      return t(`weather.weekdays.${keys[day.weekday]}` as TranslationKey)
+    }
+    return day.day ?? ''
   }
 
   if (loading && !data) {
@@ -199,7 +230,7 @@ export default function WeatherPage() {
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
           <div className="mb-4 text-4xl animate-pulse">🌤</div>
-          <p className="text-sm text-muted-foreground">获取天气数据...</p>
+          <p className="text-sm text-muted-foreground">{t('weather.loading')}</p>
         </div>
       </div>
     )
@@ -208,7 +239,7 @@ export default function WeatherPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">🌤 天气</h1>
+        <h1 className="text-2xl font-bold text-foreground">🌤 {t('weather.title')}</h1>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -216,7 +247,7 @@ export default function WeatherPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="搜索城市..."
+              placeholder={t('weather.searchPlaceholder')}
               className="pl-9 w-40 text-sm"
             />
           </div>
@@ -253,19 +284,19 @@ export default function WeatherPage() {
             <div className="flex items-center justify-center gap-3 mb-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">{data.city}</span>
-              {loading && <span className="text-xs text-muted-foreground animate-pulse">更新中...</span>}
+              {loading && <span className="text-xs text-muted-foreground animate-pulse">{t('weather.updating')}</span>}
             </div>
             <div className="text-7xl mb-2">{data.icon}</div>
             <div className="text-5xl font-bold text-foreground">{data.temp}°</div>
-            <p className="text-lg text-muted-foreground">{data.condition}</p>
-            <p className="text-sm text-muted-foreground mt-1">体感 {data.feelsLike}° · 气压 {data.pressure}hPa</p>
+            <p className="text-lg text-muted-foreground">{conditionText}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('weather.feelsLike')} {data.feelsLike}° · {t('weather.pressure')} {data.pressure}hPa</p>
 
             <div className="mt-6 grid grid-cols-4 gap-4">
               {[
-                { icon: Droplets, label: '湿度', value: `${data.humidity}%` },
-                { icon: Wind, label: '风力', value: `${data.windSpeed} km/h` },
-                { icon: Sun, label: '紫外线', value: data.uv > 0 ? `${data.uv} 级` : '--' },
-                { icon: Thermometer, label: '体感', value: `${data.feelsLike}°` },
+                { icon: Droplets, label: t('weather.humidity'), value: `${data.humidity}%` },
+                { icon: Wind, label: t('weather.wind'), value: `${data.windSpeed} km/h` },
+                { icon: Sun, label: t('weather.uv'), value: data.uv > 0 ? `${data.uv}` : '--' },
+                { icon: Thermometer, label: t('weather.feelsLike'), value: `${data.feelsLike}°` },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex flex-col items-center gap-1 rounded-xl bg-muted/30 p-3">
                   <Icon className="h-4 w-4 text-muted-foreground" />
@@ -276,18 +307,18 @@ export default function WeatherPage() {
             </div>
 
             <div className="mt-4 flex items-center justify-center gap-6 text-xs text-muted-foreground">
-              <span>🫁 空气质量 {data.aqi > 0 ? `AQI ${data.aqi} · ${getAQIDesc(data.aqi)}` : '--'}</span>
-              <span>👁 能见度 {data.visibility} km</span>
+              <span>🫁 {t('weather.airQuality')} {data.aqi > 0 ? `AQI ${data.aqi} · ${getAQIDesc(data.aqi)}` : '--'}</span>
+              <span>👁 {t('weather.visibility')} {data.visibility} {t('weather.km')}</span>
             </div>
           </GlassCard>
 
           {/* 7天预报 */}
           <GlassCard>
-            <h3 className="font-semibold text-sm text-foreground mb-4">📅 7 天预报</h3>
+            <h3 className="font-semibold text-sm text-foreground mb-4">📅 {t('weather.forecast')}</h3>
             <div className="grid grid-cols-7 gap-2">
-              {data.forecast.map((day) => (
-                <div key={day.day} className="flex flex-col items-center gap-1 rounded-xl bg-muted/20 p-3">
-                  <span className="text-xs font-medium text-muted-foreground">{day.day}</span>
+              {data.forecast.map((day, index) => (
+                <div key={`${day.weekday ?? index}-${index}`} className="flex flex-col items-center gap-1 rounded-xl bg-muted/20 p-3">
+                  <span className="text-xs font-medium text-muted-foreground">{forecastDayLabel(day)}</span>
                   <span className="text-2xl">{day.icon}</span>
                   <div className="text-xs font-medium mt-1">
                     <span className="text-foreground">{day.high}°</span>

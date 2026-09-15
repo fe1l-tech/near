@@ -12,6 +12,7 @@
 
 import { execute, getDatabase, persistNow, query, queryOne } from '../db/browser-db'
 import { seedDefaultQuotes } from '@shared/db/seed-quotes'
+import { t } from '@core/i18n'
 
 const uuid = () => crypto.randomUUID()
 
@@ -278,7 +279,7 @@ const memo = {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
-        data.title || '未命名',
+        data.title || t('memo.placeholderTitle'),
         content,
         data.excerpt || content.slice(0, 100),
         data.tags || null,
